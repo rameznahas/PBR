@@ -5,7 +5,7 @@
 class Camera {
 public:
 	Camera(glm::vec3 pos, glm::vec3 fwd, glm::vec3 world_up, float fov);
-	void walk_around(glm::vec3 dir, float delta_time);
+	void walk_around(glm::vec3 dir, double delta_time);
 	void look_around(double xpos, double ypos);
 	void zoom(double yoffset);
 	glm::mat4 get_view_matrix();
@@ -24,4 +24,3 @@ private:
 	float yaw;
 	const glm::vec3 world_up;
 };
-

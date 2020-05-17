@@ -16,12 +16,12 @@ Camera::Camera(glm::vec3 pos, glm::vec3 fwd, glm::vec3 world_up, float fov)
 
 }
 
-void Camera::walk_around(glm::vec3 dir, float delta_time) {
-	position += dir * delta_time * 5.0f;
+void Camera::walk_around(glm::vec3 dir, double delta_time) {
+	position += dir * (float)delta_time * 5.0f;
 }
 
 void Camera::look_around(double xpos, double ypos) {
-	static float prev_x, prev_y;
+	static double prev_x, prev_y;
 
 	if (first_time) {
 		prev_x = xpos;
@@ -29,8 +29,8 @@ void Camera::look_around(double xpos, double ypos) {
 		first_time = false;
 	}
 
-	float x_offset = xpos - prev_x;
-	float y_offset = prev_y - ypos;
+	double x_offset = xpos - prev_x;
+	double y_offset = prev_y - ypos;
 	prev_x = xpos;
 	prev_y = ypos;
 
@@ -38,8 +38,8 @@ void Camera::look_around(double xpos, double ypos) {
 	x_offset *= sensitivity;
 	y_offset *= sensitivity;
 
-	yaw += x_offset;
-	pitch += y_offset;
+	yaw += (float)x_offset;
+	pitch += (float)y_offset;
 
 	if (pitch > 89.0f) pitch = 89.0f;
 	if (pitch < -89.0f) pitch = -89.0f;
@@ -52,7 +52,7 @@ void Camera::look_around(double xpos, double ypos) {
 }
 
 void Camera::zoom(double yoffset) {
-	fov -= yoffset;
+	fov -= (float)yoffset;
 
 	if (fov < 1.0f) fov = 1.0f;
 	if (fov > 80.0f) fov = 80.0f;

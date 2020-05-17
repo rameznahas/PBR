@@ -67,7 +67,7 @@ Spotlight spotlight(
 	12.5f, 15.0f
 );
 
-float delta_time = 0.0f;
+double delta_time = 0.0;
 
 int main() {
 	if (!init()) return EXIT_FAILURE;
@@ -172,11 +172,11 @@ int main() {
 	program.set_int("material.specular", 1);
 
 
-	float last_frame = 0.0f;
+	double last_frame = 0.0f;
 	
 	// render loop
 	while (!glfwWindowShouldClose(window())) {
-		float current_frame = glfwGetTime();
+		double current_frame = glfwGetTime();
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
@@ -191,24 +191,16 @@ int main() {
 		program.set_vec3("dir_light.direction", &directional_light.direction[0]);
 
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			std::string point_light = "point_lights[" + std::to_string(i) + "].";
-			std::string color = point_light + "light.color";
-			std::string ambient = point_light + "light.ambient";
-			std::string diffuse = point_light + "light.diffuse";
-			std::string specular = point_light + "light.specular";
-			std::string kc = point_light + "light.kc";
-			std::string kl = point_light + "light.kl";
-			std::string kq = point_light + "light.kq";
-			std::string position = point_light + "position";
+			std::string idx = std::to_string(i);
 
-			program.set_vec3(color.c_str(), &point_lights[i].color[0]);
-			program.set_vec3(ambient.c_str(), &point_lights[i].ambient[0]);
-			program.set_vec3(diffuse.c_str(), &point_lights[i].diffuse[0]);
-			program.set_vec3(specular.c_str(), &point_lights[i].specular[0]);
-			program.set_float(kc.c_str(), point_lights[i].kc);
-			program.set_float(kl.c_str(), point_lights[i].kl);
-			program.set_float(kq.c_str(), point_lights[i].kq);
-			program.set_vec3(position.c_str(), &point_lights[i].position[0]);
+			program.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
+			program.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
+			program.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
+			program.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
+			program.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
+			program.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
+			program.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
+			program.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
 		}
 
 		program.set_vec3("spotlight.light.color", &spotlight.color[0]);
