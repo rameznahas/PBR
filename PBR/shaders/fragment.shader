@@ -29,8 +29,8 @@ struct Spotlight {
 };
 
 struct Material {
-	sampler2D diffuse;
-	sampler2D specular;
+	sampler2D diffuse1;
+	sampler2D specular1;
 	sampler2D emission;
 	float shininess;
 };
@@ -62,16 +62,16 @@ void main() {
 			* attenuation(point_light.light, point_light.position);
 	}
 
-	vec3 frag_light_dir = spotlight.position - vertex_position;
+	/*vec3 frag_light_dir = spotlight.position - vertex_position;
 	color += compute_light(spotlight.light, frag_light_dir) 
 		* attenuation(spotlight.light, spotlight.position) 
-		* intensity(frag_light_dir, spotlight.direction, spotlight.inner_cutoff, spotlight.outer_cutoff);
+		* intensity(frag_light_dir, spotlight.direction, spotlight.inner_cutoff, spotlight.outer_cutoff);*/
 
 	fragment_color = vec4(color, 1.0f);
 }
 
 vec3 compute_light(Light light, vec3 light_direction) {
-	vec3 object_diffuse = texture(material.diffuse, texture_coords).rgb;
+	vec3 object_diffuse = texture(material.diffuse1, texture_coords).rgb;
 
 	vec3 ambient = light.ambient * object_diffuse;
 
@@ -82,7 +82,7 @@ vec3 compute_light(Light light, vec3 light_direction) {
 	vec3 cam_dir = normalize(cam_position - vertex_position);
 	vec3 reflected_dir = reflect(-light_dir, vertex_normal);
 	float spec_angle = pow(max(dot(cam_dir, reflected_dir), 0.0f), material.shininess);
-	vec3 specular = light.color * light.specular * spec_angle * texture(material.specular, texture_coords).rgb;
+	vec3 specular = light.color * light.specular * spec_angle * texture(material.specular1, texture_coords).r;
 
 	return ambient + diffuse + specular;
 }
