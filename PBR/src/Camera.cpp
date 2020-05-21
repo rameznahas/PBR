@@ -6,8 +6,6 @@ Camera::Camera(glm::vec3 pos, glm::vec3 fwd, glm::vec3 world_up, float fov)
 	position(pos),
 	world_up(world_up),
 	fov(fov),
-	pitch(0.0f),
-	yaw(-90.0f),
 	first_time(true)
 {
 	update_axes(fwd);

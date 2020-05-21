@@ -151,6 +151,7 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <None Include="shaders\fragment.shader" />
     <None Include="shaders\light_fragment.shader" />
     <None Include="shaders\light_vertex.shader" />
+    <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\vertex.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

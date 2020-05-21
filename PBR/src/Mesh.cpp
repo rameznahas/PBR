@@ -42,7 +42,6 @@ void Mesh::draw(Shader shader) const {
 		glBindTexture(GL_TEXTURE_2D, textures[i].id);
 		shader.set_int(("material." + type + nb).c_str(), i);
 	}
-	//glActiveTexture(GL_TEXTURE0);
 
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);

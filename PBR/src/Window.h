@@ -8,12 +8,14 @@ public:
 		:
 		width(w),
 		height(h),
-		window(win)
+		window(win),
+		center(w / 2.0f, h / 2.0f)
 	{}
 	GLFWwindow* operator()() const { return window; }
 
 	unsigned int width;
 	unsigned int height;
+	glm::vec2 center;
 private:
 	GLFWwindow* window;
 };

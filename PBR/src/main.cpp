@@ -4,6 +4,9 @@
 #include "glew.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/rotate_vector.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtx/quaternion.hpp"
 #include "main.h"
 #include "Window.h"
 #include "Shader.h"
@@ -66,6 +69,9 @@ Spotlight spotlight(
 );
 
 double delta_time = 0.0;
+bool mouse_button_down = false;
+float angle_x = 0.0f;
+float angle_y = 0.0f;
 
 int main() {
 	if (!init()) return EXIT_FAILURE;
@@ -112,8 +118,47 @@ int main() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glEnableVertexAttribArray(0);
 
+	program.use();
+	glm::mat4 M_point_lights[NB_POINT_LIGHTS];
+	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		M_point_lights[i] = glm::mat4(1.0f);
+		M_point_lights[i] = glm::translate(M_point_lights[i], point_lights[i].position);
+		M_point_lights[i] = glm::scale(M_point_lights[i], glm::vec3(0.1f));
+
+		std::string idx = std::to_string(i);
+
+		program.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
+		program.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
+		program.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
+		program.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
+		program.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
+		program.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
+		program.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
+		program.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
+	}
+
+	program.set_vec3("dir_light.light.color", &directional_light.color[0]);
+	program.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
+	program.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
+	program.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
+	program.set_vec3("dir_light.direction", &directional_light.direction[0]);
+
+	program.set_vec3("spotlight.light.color", &spotlight.color[0]);
+	program.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
+	program.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
+	program.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
+	program.set_float("spotlight.light.kc", spotlight.kc);
+	program.set_float("spotlight.light.kl", spotlight.kl);
+	program.set_float("spotlight.light.kq", spotlight.kq);
+	program.set_vec3("spotlight.position", &camera.position[0]);
+	program.set_vec3("spotlight.direction", &camera.forward[0]);
+	program.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
+	program.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
+
+	program.set_float("material.shininess", 128.0f);
+
 	double last_frame = 0.0f;
-	
+
 	// render loop
 	while (!glfwWindowShouldClose(window())) {
 		double current_frame = glfwGetTime();
@@ -124,44 +169,21 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		program.use();
-		program.set_vec3("dir_light.light.color", &directional_light.color[0]);
-		program.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
-		program.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
-		program.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
-		program.set_vec3("dir_light.direction", &directional_light.direction[0]);
-
-		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			std::string idx = std::to_string(i);
-
-			program.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
-			program.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
-			program.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
-			program.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
-			program.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
-			program.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
-			program.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
-			program.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
-		}
-
-		program.set_vec3("spotlight.light.color", &spotlight.color[0]);
-		program.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
-		program.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
-		program.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
-		program.set_float("spotlight.light.kc", spotlight.kc);
-		program.set_float("spotlight.light.kl", spotlight.kl);
-		program.set_float("spotlight.light.kq", spotlight.kq);
-		program.set_vec3("spotlight.position", &camera.position[0]);
-		program.set_vec3("spotlight.direction", &camera.forward[0]);
-		program.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
-		program.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
-		
-		program.set_float("material.shininess", 128.0f);
-
 		program.set_vec3("cam_position", &camera.position[0]);
 
 		glm::mat4 M(1.0f);
-		M = glm::translate(M, glm::vec3(0.0f));
-		M = glm::scale(M, glm::vec3(1.0f));
+
+		if (mouse_button_down) {
+			double x, y;
+			glfwGetCursorPos(window(), &x, &y);
+
+			angle_x += glm::radians(x - window.center.x) * 0.001f;
+			angle_y += glm::radians(y - window.center.y) * 0.001f;
+
+			glm::vec3 euler_angles(angle_y, angle_x, 0.0);
+			glm::quat quat(euler_angles);
+			M = glm::toMat4(quat);
+		}
 
 		glm::mat4 V = camera.get_view_matrix();
 		glm::mat4 P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
@@ -173,17 +195,13 @@ int main() {
 		program.set_mat3("normal_matrix", &normal_matrix[0][0]);
 
 		backpack.draw(program);
-		
 
 		program_light.use();
 		glBindVertexArray(VAO_light);
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 			program_light.set_vec3("light_color", &point_lights[i].color[0]);
 
-			glm::mat4 M(1.0f);
-			M = glm::translate(M, point_lights[i].position);
-			M = glm::scale(M, glm::vec3(0.1f));
-			glm::mat4 MVP = P * V * M;
+			glm::mat4 MVP = P * V * M_point_lights[i];
 			program_light.set_mat4("MVP", &MVP[0][0]);
 			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 		}
@@ -217,7 +235,8 @@ bool init() {
 
 	window = Window(
 		800, 600,
-		glfwCreateWindow(800, 600, "PBR", nullptr, nullptr));
+		glfwCreateWindow(800, 600, "PBR", nullptr, nullptr)
+	);
 
 	if (!window()) {
 		std::cout << "ERROR::GLFW::WINDOW::CREATION" << std::endl;
@@ -231,6 +250,7 @@ bool init() {
 	glfwSetKeyCallback(window(), key_callback);
 	glfwSetCursorPosCallback(window(), cursor_callback);
 	glfwSetScrollCallback(window(), scroll_callback);
+	glfwSetMouseButtonCallback(window(), mouse_button_callback);
 
 	if (glewInit() != GLEW_OK) {
 		std::cout << "ERROR::GLEW::INIT" << std::endl;
@@ -263,4 +283,22 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(-camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(-camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(camera.right, delta_time);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	static double x, y;
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+		glfwSetCursorPosCallback(window, nullptr);
+		glfwGetCursorPos(window, &x, &y);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		camera.look_around(x, y);
+		glfwSetCursorPos(window, ::window.center.x, ::window.center.y);
+		mouse_button_down = true;
+	}
+	else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+		camera.look_around(x, y);
+		glfwSetCursorPosCallback(window, cursor_callback);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		mouse_button_down = false;
+	}
 }
