@@ -1,5 +1,6 @@
 #pragma once
 #include "glfw3.h"
+#include "glm/glm.hpp"
 
 struct Window {
 public:
@@ -16,6 +17,7 @@ public:
 	unsigned int width;
 	unsigned int height;
 	glm::vec2 center;
+
 private:
 	GLFWwindow* window;
 };
