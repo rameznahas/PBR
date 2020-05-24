@@ -16,10 +16,13 @@ int main() {
 	if (!init()) return EXIT_FAILURE;
 
 	Shader program_textured("./shaders/textured_vertex.shader", "./shaders/textured_fragment.shader");
+	Shader program_mirror("./shaders/mirror_vertex.shader", "./shaders/mirror_fragment.shader");
 	Shader program_light("./shaders/light_vertex.shader", "./shaders/light_fragment.shader");
 	Shader program_skybox("./shaders/skybox_vertex.shader", "./shaders/skybox_fragment.shader");
 
 	Model backpack_textured("./assets/models/backpack/backpack.obj");
+	Model backpack_mirror("./assets/models/backpack/backpack.obj");
+	backpack_mirror.M = glm::translate(backpack_mirror.M, backpack_mirror_pos);
 	stbi_set_flip_vertically_on_load(false);
 
 	GLuint VAO_light, VBO_light, EBO_light;
@@ -101,64 +104,176 @@ int main() {
 
 	program_textured.set_float("material.shininess", 128.0f);
 
-	double last_frame = 0.0f;
+	GLuint FBO, cubemap_faces[NB_CUBEMAP_FACES]/*dynamic_environment_cubemap*/, RBO;
+	glGenFramebuffers(1, &FBO);
+	glGenTextures(NB_CUBEMAP_FACES, cubemap_faces);
+	glGenRenderbuffers(1, &RBO);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window.width, window.height);
+	glFramebufferRenderbuffer(GL_RENDERBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		glBindTexture(GL_TEXTURE_2D, cubemap_faces[i]);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window.width, window.height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, cubemap_faces[i], 0);
+	}
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	double last_frame = 0.0f;
+	double current_frame;
+	//camera = environment_mapping_cameras[5];
 	// render loop
 	while (!glfwWindowShouldClose(window())) {
-		double current_frame = glfwGetTime();
+		current_frame = glfwGetTime();
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
+		/*glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+		glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+			glDrawBuffer(GL_COLOR_ATTACHMENT0 + i);
+			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		program_textured.use();
-		program_textured.set_vec3("cam_position", &camera.position[0]);
 
-		if (mouse_button_down) {
-			double x, y;
-			glfwGetCursorPos(window(), &x, &y);
+			if (mouse_button_down) {
+				double x, y;
+				glfwGetCursorPos(window(), &x, &y);
 
-			angle_x += glm::radians(x - window.center.x) * 0.001f;
-			angle_y += glm::radians(y - window.center.y) * 0.001f;
+				angle_x += glm::radians(x - window.center.x) * 0.001f;
+				angle_y += glm::radians(y - window.center.y) * 0.001f;
 
-			glm::vec3 euler_angles(angle_y, angle_x, 0.0);
-			glm::quat quat(euler_angles);
-			backpack_textured.M = glm::toMat4(quat);
+				glm::vec3 euler_angles(angle_y, angle_x, 0.0);
+				glm::quat quat(euler_angles);
+				backpack_textured.M = glm::toMat4(quat);
+			}
+
+			V = environment_mapping_cameras[i].get_view_matrix();
+			MVP = P * V * backpack_textured.M;
+			normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_textured.M)));
+
+			program_textured.use();
+			program_textured.set_mat4("M", &backpack_textured.M[0][0]);
+			program_textured.set_mat4("MVP", &MVP[0][0]);
+			program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
+			program_textured.set_vec3("cam_position", &environment_mapping_cameras[i].position[0]);
+
+			backpack_textured.draw(program_textured);
+
+			/*MVP = P * V * backpack_mirror.M;
+			normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_mirror.M)));
+
+			program_mirror.use();
+			program_mirror.set_mat4("M", &backpack_mirror.M[0][0]);
+			program_mirror.set_mat4("MVP", &MVP[0][0]);
+			program_mirror.set_mat3("normal_matrix", &normal_matrix[0][0]);
+			program_mirror.set_vec3("cam_position", &camera.position[0]);
+
+			glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+			backpack_mirror.draw(program_mirror);*/
+
+			/*glBindVertexArray(VAO_light);
+			program_light.use();
+			for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+				program_light.set_vec3("light_color", &point_lights[i].color[0]);
+
+				glm::mat4 MVP = P * V * M_point_lights[i];
+				program_light.set_mat4("MVP", &MVP[0][0]);
+				glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+			}*/
+
+			glBindVertexArray(VAO_skybox);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+			glDepthFunc(GL_LEQUAL);
+			program_skybox.use();
+
+			V = glm::mat4(glm::mat3(environment_mapping_cameras[i].get_view_matrix()));
+			P = glm::perspective(glm::radians(environment_mapping_cameras[i].fov), (float)window.width / window.height, 0.1f, 100.0f);
+
+			glm::mat4 VP = P * V;
+			program_skybox.set_mat4("VP", &VP[0][0]);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+			glDepthFunc(GL_LESS);
 		}
 
-		V = camera.get_view_matrix();
-		MVP = P * V * backpack_textured.M;
-		normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_textured.M)));
+		//if (mouse_button_down) {
+		//	double x, y;
+		//	glfwGetCursorPos(window(), &x, &y);
 
-		program_textured.set_mat4("M", &backpack_textured.M[0][0]);
-		program_textured.set_mat4("MVP", &MVP[0][0]);
-		program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
+		//	angle_x += glm::radians(x - window.center.x) * 0.001f;
+		//	angle_y += glm::radians(y - window.center.y) * 0.001f;
 
-		backpack_textured.draw(program_textured);
+		//	glm::vec3 euler_angles(angle_y, angle_x, 0.0);
+		//	glm::quat quat(euler_angles);
+		//	backpack_textured.M = glm::toMat4(quat);
+		//}
 
-		/*glBindVertexArray(VAO_light);
-		program_light.use();
-		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			program_light.set_vec3("light_color", &point_lights[i].color[0]);
+		//V = camera.get_view_matrix();
+		//MVP = P * V * backpack_textured.M;
+		//normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_textured.M)));
 
-			glm::mat4 MVP = P * V * M_point_lights[i];
-			program_light.set_mat4("MVP", &MVP[0][0]);
-			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-		}*/
+		//program_textured.use();
+		//program_textured.set_mat4("M", &backpack_textured.M[0][0]);
+		//program_textured.set_mat4("MVP", &MVP[0][0]);
+		//program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
+		//program_textured.set_vec3("cam_position", &camera.position[0]);
 
-		glBindVertexArray(VAO_skybox);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
-		glDepthFunc(GL_LEQUAL);
-		program_skybox.use();
+		//backpack_textured.draw(program_textured);
 
-		V = glm::mat4(glm::mat3(camera.get_view_matrix()));
-		P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
+		///*MVP = P * V * backpack_mirror.M;
+		//normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_mirror.M)));
 
-		glm::mat4 VP = P * V;
-		program_skybox.set_mat4("VP", &VP[0][0]);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glDepthFunc(GL_LESS);
+		//program_mirror.use();
+		//program_mirror.set_mat4("M", &backpack_mirror.M[0][0]);
+		//program_mirror.set_mat4("MVP", &MVP[0][0]);
+		//program_mirror.set_mat3("normal_matrix", &normal_matrix[0][0]);
+		//program_mirror.set_vec3("cam_position", &camera.position[0]);
+
+		//glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+		//backpack_mirror.draw(program_mirror);*/
+
+		///*glBindVertexArray(VAO_light);
+		//program_light.use();
+		//for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		//	program_light.set_vec3("light_color", &point_lights[i].color[0]);
+
+		//	glm::mat4 MVP = P * V * M_point_lights[i];
+		//	program_light.set_mat4("MVP", &MVP[0][0]);
+		//	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		//}*/
+
+		//glBindVertexArray(VAO_skybox);
+		//glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+		//glDepthFunc(GL_LEQUAL);
+		//program_skybox.use();
+
+		//V = glm::mat4(glm::mat3(camera.get_view_matrix()));
+		//P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
+
+		//glm::mat4 VP = P * V;
+		//program_skybox.set_mat4("VP", &VP[0][0]);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
+		//glDepthFunc(GL_LESS);
 
 		// swap color buffer
 		glfwSwapBuffers(window());

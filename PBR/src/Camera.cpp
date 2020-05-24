@@ -14,6 +14,21 @@ Camera::Camera(glm::vec3 pos, glm::vec3 fwd, glm::vec3 world_up, float fov)
 
 }
 
+Camera& Camera::operator=(const Camera& rhs) {
+	if (this != &rhs) {
+		position = rhs.position;
+		forward = rhs.forward;
+		right = rhs.right;
+		up = rhs.up;
+		fov = rhs.fov;
+		first_time = rhs.first_time;
+		pitch = rhs.pitch;
+		yaw = rhs.yaw;
+		world_up = rhs.world_up;
+	}
+	return *this;
+}
+
 void Camera::walk_around(glm::vec3 dir, double delta_time) {
 	position += dir * (float)delta_time * 5.0f;
 }
