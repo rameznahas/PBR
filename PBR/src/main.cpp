@@ -15,11 +15,11 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader program("./shaders/vertex.shader", "./shaders/fragment.shader");
+	Shader program_textured("./shaders/textured_vertex.shader", "./shaders/textured_fragment.shader");
 	Shader program_light("./shaders/light_vertex.shader", "./shaders/light_fragment.shader");
 	Shader program_skybox("./shaders/skybox_vertex.shader", "./shaders/skybox_fragment.shader");
 
-	Model backpack("./assets/models/backpack/backpack.obj");
+	Model backpack_textured("./assets/models/backpack/backpack.obj");
 	stbi_set_flip_vertically_on_load(false);
 
 	GLuint VAO_light, VBO_light, EBO_light;
@@ -62,7 +62,7 @@ int main() {
 
 	GLuint skybox = load_cubemap(cubemaps);
 
-	program.use();
+	program_textured.use();
 	glm::mat4 M_point_lights[NB_POINT_LIGHTS];
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		M_point_lights[i] = glm::mat4(1.0f);
@@ -71,35 +71,35 @@ int main() {
 
 		std::string idx = std::to_string(i);
 
-		program.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
-		program.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
-		program.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
-		program.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
-		program.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
-		program.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
-		program.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
-		program.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
+		program_textured.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
+		program_textured.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
+		program_textured.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
+		program_textured.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
+		program_textured.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
+		program_textured.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
+		program_textured.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
+		program_textured.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
 	}
 
-	program.set_vec3("dir_light.light.color", &directional_light.color[0]);
-	program.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
-	program.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
-	program.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
-	program.set_vec3("dir_light.direction", &directional_light.direction[0]);
+	program_textured.set_vec3("dir_light.light.color", &directional_light.color[0]);
+	program_textured.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
+	program_textured.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
+	program_textured.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
+	program_textured.set_vec3("dir_light.direction", &directional_light.direction[0]);
 
-	program.set_vec3("spotlight.light.color", &spotlight.color[0]);
-	program.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
-	program.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
-	program.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
-	program.set_float("spotlight.light.kc", spotlight.kc);
-	program.set_float("spotlight.light.kl", spotlight.kl);
-	program.set_float("spotlight.light.kq", spotlight.kq);
-	program.set_vec3("spotlight.position", &camera.position[0]);
-	program.set_vec3("spotlight.direction", &camera.forward[0]);
-	program.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
-	program.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
+	program_textured.set_vec3("spotlight.light.color", &spotlight.color[0]);
+	program_textured.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
+	program_textured.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
+	program_textured.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
+	program_textured.set_float("spotlight.light.kc", spotlight.kc);
+	program_textured.set_float("spotlight.light.kl", spotlight.kl);
+	program_textured.set_float("spotlight.light.kq", spotlight.kq);
+	program_textured.set_vec3("spotlight.position", &camera.position[0]);
+	program_textured.set_vec3("spotlight.direction", &camera.forward[0]);
+	program_textured.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
+	program_textured.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
 
-	program.set_float("material.shininess", 128.0f);
+	program_textured.set_float("material.shininess", 128.0f);
 
 	double last_frame = 0.0f;
 
@@ -112,8 +112,8 @@ int main() {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		program.use();
-		program.set_vec3("cam_position", &camera.position[0]);
+		program_textured.use();
+		program_textured.set_vec3("cam_position", &camera.position[0]);
 
 		if (mouse_button_down) {
 			double x, y;
@@ -124,18 +124,18 @@ int main() {
 
 			glm::vec3 euler_angles(angle_y, angle_x, 0.0);
 			glm::quat quat(euler_angles);
-			backpack.M = glm::toMat4(quat);
+			backpack_textured.M = glm::toMat4(quat);
 		}
 
 		V = camera.get_view_matrix();
-		MVP = P * V * backpack.M;
-		normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack.M)));
+		MVP = P * V * backpack_textured.M;
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack_textured.M)));
 
-		program.set_mat4("M", &backpack.M[0][0]);
-		program.set_mat4("MVP", &MVP[0][0]);
-		program.set_mat3("normal_matrix", &normal_matrix[0][0]);
+		program_textured.set_mat4("M", &backpack_textured.M[0][0]);
+		program_textured.set_mat4("MVP", &MVP[0][0]);
+		program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
 
-		backpack.draw(program);
+		backpack_textured.draw(program_textured);
 
 		/*glBindVertexArray(VAO_light);
 		program_light.use();
@@ -167,7 +167,7 @@ int main() {
 
 	/*glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);*/
-	program.del();
+	program_textured.del();
 
 	glfwTerminate();
 	return EXIT_SUCCESS;

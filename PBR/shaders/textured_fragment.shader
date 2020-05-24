@@ -39,7 +39,7 @@ struct Material {
 
 in vec3 vertex_position;
 in vec3 vertex_normal;
-in vec2 texture_coords;
+in vec2 UV;
 
 uniform Directional_Light dir_light;
 uniform Point_Light point_lights[NB_POINT_LIGHTS];
@@ -71,7 +71,7 @@ void main() {
 }
 
 vec3 compute_light(Light light, vec3 light_direction) {
-	vec3 object_diffuse = texture(material.diffuse1, texture_coords).rgb;
+	vec3 object_diffuse = texture(material.diffuse1, UV).rgb;
 
 	vec3 ambient = light.ambient * object_diffuse;
 
@@ -82,7 +82,7 @@ vec3 compute_light(Light light, vec3 light_direction) {
 	vec3 cam_dir = normalize(cam_position - vertex_position);
 	vec3 reflected_dir = reflect(-light_dir, vertex_normal);
 	float spec_angle = pow(max(dot(cam_dir, reflected_dir), 0.0f), material.shininess);
-	vec3 specular = light.color * light.specular * spec_angle * texture(material.specular1, texture_coords).r;
+	vec3 specular = light.color * light.specular * spec_angle * texture(material.specular1, UV).r;
 
 	return ambient + diffuse + specular;
 }
