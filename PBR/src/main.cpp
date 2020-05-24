@@ -8,100 +8,19 @@
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "main.h"
-#include "Window.h"
 #include "Shader.h"
-#include "Camera.h"
-#include "Light.h"
-//#include "Material.h"
 #include "Model.h"
-
-#define NB_POINT_LIGHTS 4
-
-Window window;
-
-Camera camera(
-	glm::vec3(0.0f, 0.0f, 3.0f),
-	glm::vec3(0.0f, 0.0f, -3.0f),
-	glm::vec3(0.0f, 1.0f, 0.0f),
-	45.0f
-);
-
-Directional_Light directional_light(
-	glm::vec3(-0.2f, -1.0f, -0.3f),
-	glm::vec3(1.0f),
-	glm::vec3(0.05f), glm::vec3(0.4f), glm::vec3(0.5f)
-);
-
-Point_Light point_lights[NB_POINT_LIGHTS] = {
-	Point_Light(
-		glm::vec3(0.7f, 0.2f, 2.0f),
-		glm::vec3(1.0f),
-		glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f),
-		1.0f, 0.09f, 0.032f
-	),
-	Point_Light(
-		glm::vec3(2.3f, -3.3f, -4.0f),
-		glm::vec3(1.0f),
-		glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f),
-		1.0f, 0.09f, 0.032f
-	),
-	Point_Light(
-		glm::vec3(-4.0f, 2.0f, -12.0f),
-		glm::vec3(1.0f),
-		glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f),
-		1.0f, 0.09f, 0.032f
-	),
-	Point_Light(
-		glm::vec3(0.0f, 0.0f, -3.0f),
-		glm::vec3(1.0f),
-		glm::vec3(0.05f), glm::vec3(0.8f), glm::vec3(1.0f),
-		1.0f, 0.09f, 0.032f
-	)
-};
-
-Spotlight spotlight(
-	glm::vec3(0.0f, 2.0f, 5.0f),
-	glm::vec3(0.0f, -2.0f, -5.0f),
-	glm::vec3(1.0f), 
-	glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(1.0f),
-	1.0f, 0.09f, 0.032f,
-	12.5f, 15.0f
-);
-
-double delta_time = 0.0;
-bool mouse_button_down = false;
-float angle_x = 0.0f;
-float angle_y = 0.0f;
+#include "stb_image.h"
 
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
 	Shader program("./shaders/vertex.shader", "./shaders/fragment.shader");
 	Shader program_light("./shaders/light_vertex.shader", "./shaders/light_fragment.shader");
+	Shader program_skybox("./shaders/skybox_vertex.shader", "./shaders/skybox_fragment.shader");
 
 	Model backpack("./assets/models/backpack/backpack.obj");
-
-	GLfloat vertices[] = {
-		-0.5f, -0.5f, 0.5f,
-		0.5f, -0.5f, 0.5f,
-		0.5f, 0.5f, 0.5f,
-		-0.5f, 0.5f, 0.5f,
-		-0.5f, -0.5f, -0.5f,
-		0.5f, -0.5f, -0.5f,
-		0.5f, 0.5f, -0.5f,
-		-0.5f, 0.5f, -0.5f
-	};
-
-	GLint indices[] = {
-		0, 1, 2,
-		0, 2, 3,
-		4, 6, 5,
-		4, 7, 6,
-		1, 5, 2,
-		5, 6, 2,
-		0, 3, 4,
-		3, 7, 4
-	};
+	stbi_set_flip_vertically_on_load(false);
 
 	GLuint VAO_light, VBO_light, EBO_light;
 	glGenVertexArrays(1, &VAO_light);
@@ -112,11 +31,36 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO_light);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_light);
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(light_vertices), light_vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(light_indices), light_indices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 	glEnableVertexAttribArray(0);
+
+	GLuint VAO_skybox, VBO_skybox;
+	glGenVertexArrays(1, &VAO_skybox);
+	glGenBuffers(1, &VBO_skybox);
+
+	glBindVertexArray(VAO_skybox);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO_skybox);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(skybox_vertices), skybox_vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindVertexArray(0);
+
+	std::vector<std::string> cubemaps{
+		"./assets/skybox/right.jpg",
+		"./assets/skybox/left.jpg",
+		"./assets/skybox/top.jpg",
+		"./assets/skybox/bottom.jpg",
+		"./assets/skybox/front.jpg",
+		"./assets/skybox/back.jpg"
+	};
+
+	GLuint skybox = load_cubemap(cubemaps);
 
 	program.use();
 	glm::mat4 M_point_lights[NB_POINT_LIGHTS];
@@ -171,8 +115,6 @@ int main() {
 		program.use();
 		program.set_vec3("cam_position", &camera.position[0]);
 
-		glm::mat4 M(1.0f);
-
 		if (mouse_button_down) {
 			double x, y;
 			glfwGetCursorPos(window(), &x, &y);
@@ -182,29 +124,41 @@ int main() {
 
 			glm::vec3 euler_angles(angle_y, angle_x, 0.0);
 			glm::quat quat(euler_angles);
-			M = glm::toMat4(quat);
+			backpack.M = glm::toMat4(quat);
 		}
 
-		glm::mat4 V = camera.get_view_matrix();
-		glm::mat4 P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
+		V = camera.get_view_matrix();
+		MVP = P * V * backpack.M;
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(backpack.M)));
 
-		glm::mat4 MVP = P * V * M;
-		glm::mat3 normal_matrix = glm::mat3(glm::transpose(glm::inverse(M)));
-		program.set_mat4("M", &M[0][0]);
+		program.set_mat4("M", &backpack.M[0][0]);
 		program.set_mat4("MVP", &MVP[0][0]);
 		program.set_mat3("normal_matrix", &normal_matrix[0][0]);
 
 		backpack.draw(program);
 
+		/*glBindVertexArray(VAO_light);
 		program_light.use();
-		glBindVertexArray(VAO_light);
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 			program_light.set_vec3("light_color", &point_lights[i].color[0]);
 
 			glm::mat4 MVP = P * V * M_point_lights[i];
 			program_light.set_mat4("MVP", &MVP[0][0]);
 			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-		}
+		}*/
+
+		glBindVertexArray(VAO_skybox);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+		glDepthFunc(GL_LEQUAL);
+		program_skybox.use();
+
+		V = glm::mat4(glm::mat3(camera.get_view_matrix()));
+		P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
+
+		glm::mat4 VP = P * V;
+		program_skybox.set_mat4("VP", &VP[0][0]);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDepthFunc(GL_LESS);
 
 		// swap color buffer
 		glfwSwapBuffers(window());
@@ -301,4 +255,37 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		mouse_button_down = false;
 	}
+}
+
+GLuint load_cubemap(std::vector<std::string>& paths) {
+	GLuint cubemap;
+	glGenTextures(1, &cubemap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+
+	int width, height, channels;
+	for (unsigned int i = 0; i < paths.size(); ++i) {
+		unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &channels, 0);
+
+		if (data) {
+			GLenum format;
+			if (channels == 1) format = GL_RED;
+			else if (channels == 2) format = GL_RG;
+			else if (channels == 3) format = GL_RGB;
+			else if (channels == 4) format = GL_RGBA;
+			
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		}
+		else {
+			std::cout << "ERROR::CUBEMAP::LOADING" << std::endl;
+		}
+
+		stbi_image_free(data);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return cubemap;
 }
