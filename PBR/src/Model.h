@@ -13,6 +13,8 @@ public:
 	Model(std::string path);
 	void draw(Shader shader) const;
 
+	glm::mat4 M;
+
 private:
 	void process_node(aiNode* node, const aiScene* scene);
 	Mesh process_mesh(aiMesh* mesh, const aiScene* scene);

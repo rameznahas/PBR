@@ -3,7 +3,10 @@
 #include "stb_image.h"
 #include "Model.h"
 
-Model::Model(std::string path) {
+Model::Model(std::string path) 
+	:
+	M(1.0f)
+{
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
