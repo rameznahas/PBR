@@ -36,7 +36,7 @@ struct Directional_Light : public Light {
 	Directional_Light(glm::vec3 dir, glm::vec3 col, glm::vec3 ambi, glm::vec3 diff, glm::vec3 spec, float constant = 0.0f, float linear = 0.0f, float quadratic = 0.0f)
 		:
 		Light(col, ambi, diff, spec, constant, linear, quadratic),
-		direction(dir)
+		direction(glm::normalize(dir))
 	{}
 
 	glm::vec3 direction;

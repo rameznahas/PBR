@@ -8,8 +8,6 @@
 #include "glm/gtc/quaternion.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "main.h"
-#include "Shader.h"
-#include "Model.h"
 #include "stb_image.h"
 
 int main() {
@@ -63,8 +61,6 @@ int main() {
 		"./assets/skybox/back.jpg"
 	};
 
-
-	program_textured.use();
 	glm::mat4 M_point_lights[NB_POINT_LIGHTS];
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		M_point_lights[i] = glm::mat4(1.0f);
@@ -72,36 +68,12 @@ int main() {
 		M_point_lights[i] = glm::scale(M_point_lights[i], glm::vec3(0.1f));
 
 		std::string idx = std::to_string(i);
-
-		program_textured.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
-		program_textured.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
-		program_textured.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
-		program_textured.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
-		program_textured.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
-		program_textured.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
-		program_textured.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
-		program_textured.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
+		set_point_light_uniforms(program_textured, idx, i);
+		set_point_light_uniforms(program_mirror, idx, i);
 	}
 
-	program_textured.set_vec3("dir_light.light.color", &directional_light.color[0]);
-	program_textured.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
-	program_textured.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
-	program_textured.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
-	program_textured.set_vec3("dir_light.direction", &directional_light.direction[0]);
-
-	program_textured.set_vec3("spotlight.light.color", &spotlight.color[0]);
-	program_textured.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
-	program_textured.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
-	program_textured.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
-	program_textured.set_float("spotlight.light.kc", spotlight.kc);
-	program_textured.set_float("spotlight.light.kl", spotlight.kl);
-	program_textured.set_float("spotlight.light.kq", spotlight.kq);
-	program_textured.set_vec3("spotlight.position", &camera.position[0]);
-	program_textured.set_vec3("spotlight.direction", &camera.forward[0]);
-	program_textured.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
-	program_textured.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
-
-	program_textured.set_float("material.shininess", 128.0f);
+	set_dir_light_uniforms(program_textured);
+	set_dir_light_uniforms(program_mirror);
 
 	GLuint FBO, dynamic_skybox, RBO;
 	glGenFramebuffers(1, &FBO);
@@ -351,6 +323,45 @@ void poll_mouse(Model& model) {
 		glm::quat quat(euler_angles);
 		model.M = glm::toMat4(quat);
 	}
+}
+
+void set_point_light_uniforms(Shader program, std::string idx, unsigned int i) {
+	program.use();
+
+	program.set_vec3(("point_lights[" + idx + "].light.color").c_str(), &point_lights[i].color[0]);
+	program.set_vec3(("point_lights[" + idx + "].light.ambient").c_str(), &point_lights[i].ambient[0]);
+	program.set_vec3(("point_lights[" + idx + "].light.diffuse").c_str(), &point_lights[i].diffuse[0]);
+	program.set_vec3(("point_lights[" + idx + "].light.specular").c_str(), &point_lights[i].specular[0]);
+	program.set_float(("point_lights[" + idx + "].light.kc").c_str(), point_lights[i].kc);
+	program.set_float(("point_lights[" + idx + "].light.kl").c_str(), point_lights[i].kl);
+	program.set_float(("point_lights[" + idx + "].light.kq").c_str(), point_lights[i].kq);
+	program.set_vec3(("point_lights[" + idx + "].position").c_str(), &point_lights[i].position[0]);
+}
+
+void set_dir_light_uniforms(Shader program) {
+	program.use();
+
+	program.set_vec3("dir_light.light.color", &directional_light.color[0]);
+	program.set_vec3("dir_light.light.ambient", &directional_light.ambient[0]);
+	program.set_vec3("dir_light.light.diffuse", &directional_light.diffuse[0]);
+	program.set_vec3("dir_light.light.specular", &directional_light.specular[0]);
+	program.set_vec3("dir_light.direction", &directional_light.direction[0]);
+}
+
+void set_spotlight_uniforms(Shader program) {
+	program.use();
+
+	program.set_vec3("spotlight.light.color", &spotlight.color[0]);
+	program.set_vec3("spotlight.light.ambient", &spotlight.ambient[0]);
+	program.set_vec3("spotlight.light.diffuse", &spotlight.diffuse[0]);
+	program.set_vec3("spotlight.light.specular", &spotlight.specular[0]);
+	program.set_float("spotlight.light.kc", spotlight.kc);
+	program.set_float("spotlight.light.kl", spotlight.kl);
+	program.set_float("spotlight.light.kq", spotlight.kq);
+	program.set_vec3("spotlight.position", &camera.position[0]);
+	program.set_vec3("spotlight.direction", &camera.forward[0]);
+	program.set_float("spotlight.inner_cutoff", spotlight.inner_cutoff);
+	program.set_float("spotlight.outer_cutoff", spotlight.outer_cutoff);
 }
 
 GLuint load_cubemap(std::vector<std::string>& paths) {

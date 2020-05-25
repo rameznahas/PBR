@@ -3,6 +3,8 @@
 #include "Window.h"
 #include "Camera.h"
 #include "Light.h"
+#include "Shader.h"
+#include "Model.h"
 
 #define NB_POINT_LIGHTS 4
 #define NB_CUBEMAP_FACES 6
@@ -17,6 +19,10 @@ void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void poll_mouse(Model& model);
+void set_point_light_uniforms(Shader program, std::string idx, unsigned int i);
+void set_dir_light_uniforms(Shader program);
+void set_spotlight_uniforms(Shader program);
 GLuint load_cubemap(std::vector<std::string>& paths);
 
 Window window;
@@ -40,7 +46,7 @@ Camera environment_mapping_cameras[NB_CUBEMAP_FACES] = {
 };
 
 Directional_Light directional_light(
-	glm::vec3(-0.2f, -1.0f, -0.3f),
+	glm::vec3(100.0f, -100.0f, 100.0f),
 	glm::vec3(1.0f),
 	glm::vec3(0.05f), glm::vec3(0.4f), glm::vec3(0.5f)
 );

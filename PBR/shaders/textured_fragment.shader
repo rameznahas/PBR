@@ -81,7 +81,7 @@ vec3 compute_light(Light light, vec3 light_direction) {
 
 	vec3 cam_dir = normalize(cam_position - vertex_position);
 	vec3 reflected_dir = reflect(-light_dir, vertex_normal);
-	float spec_angle = pow(max(dot(cam_dir, reflected_dir), 0.0f), material.shininess);
+	float spec_angle = pow(max(dot(cam_dir, reflected_dir), 0.0f), 32.0f);
 	vec3 specular = light.color * light.specular * spec_angle * texture(material.specular1, UV).r;
 
 	return ambient + diffuse + specular;
