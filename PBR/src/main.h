@@ -6,6 +6,7 @@
 
 #define NB_POINT_LIGHTS 4
 #define NB_CUBEMAP_FACES 6
+#define CUBEMAP_RESOLUTION 2048
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
 #define WORLD_FWD glm::vec3(0.0f, 0.0f, 1.0f)
@@ -20,7 +21,7 @@ GLuint load_cubemap(std::vector<std::string>& paths);
 
 Window window;
 
-glm::vec3 backpack_mirror_pos(0.0f, 0.0f, -10.0f);
+glm::vec3 backpack_mirror_pos(0.0f, 0.0f, 10.0f);
 
 Camera camera(
 	glm::vec3(0.0f, 0.0f, 3.0f),
@@ -30,12 +31,12 @@ Camera camera(
 );
 
 Camera environment_mapping_cameras[NB_CUBEMAP_FACES] = {
-	Camera(backpack_mirror_pos,  WORLD_RIGHT, WORLD_UP, 45.0f),
-	Camera(backpack_mirror_pos, -WORLD_RIGHT, WORLD_UP, 45.0f),
-	Camera(backpack_mirror_pos,  WORLD_UP,	  WORLD_FWD, 45.0f),
-	Camera(backpack_mirror_pos, -WORLD_UP,   -WORLD_FWD, 45.0f),
-	Camera(backpack_mirror_pos, -WORLD_FWD,   WORLD_UP, 45.0f),
-	Camera(backpack_mirror_pos,  WORLD_FWD,   WORLD_UP, 45.0f),
+	Camera(backpack_mirror_pos,  WORLD_RIGHT, -WORLD_UP, 90.0f),
+	Camera(backpack_mirror_pos, -WORLD_RIGHT, -WORLD_UP, 90.0f),
+	Camera(backpack_mirror_pos,  WORLD_UP,	  WORLD_FWD, 90.0f),
+	Camera(backpack_mirror_pos, -WORLD_UP,   -WORLD_FWD, 90.0f),
+	Camera(backpack_mirror_pos,  WORLD_FWD,   -WORLD_UP, 90.0f),
+	Camera(backpack_mirror_pos, -WORLD_FWD,   -WORLD_UP, 90.0f)
 };
 
 Directional_Light directional_light(
