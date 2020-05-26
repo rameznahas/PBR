@@ -11,19 +11,19 @@ struct Light {
 };
 
 struct Point_Light {
-	Light light;
 	vec3 position;
+	Light light;
 };
 
 struct Directional_Light {
-	Light light;
 	vec3 direction;
+	Light light;
 };
 
 struct Spotlight {
-	Light light;
 	vec3 position;
 	vec3 direction;
+	Light light;
 	float inner_cutoff;
 	float outer_cutoff;
 };
