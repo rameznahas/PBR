@@ -1,30 +1,36 @@
 #version 430 core
 
-struct Light {
-	vec3 color;
-	vec3 ambient;
-	vec3 diffuse;
-	vec3 specular;
-	float kc;
-	float kl;
-	float kq;
-};
+// sizeof(Light): 15 * sizeof(float) + 4
+// sizeof(Light): 64 bytes
+struct Light {			
+	vec3 color;			
+	float kc;			
+	vec3 ambient;		
+	float kl;			
+	vec3 diffuse;		
+	float kq;			
+	vec3 specular;		// empty 4 bytes padding	
+};						
 
-struct Point_Light {
-	vec3 position;
-	Light light;
-};
+// sizeof(Point_Light): sizeof(Light) + 3 * sizeof(float) + 4
+// sizeof(Point_Light): 80 bytes
+struct Point_Light {	
+	Light light;		
+	vec3 position;		// empty 4 bytes padding
+};						
 
+// sizeof(Directional_Light): sizeof(Light) + 3 * sizeof(float) + 4
+// sizeof(Directional_Light): 80 bytes
 struct Directional_Light {
-	vec3 direction;
-	Light light;
-};
+	Light light;		
+	vec3 direction;		// empty 4 bytes padding
+};						
 
 struct Spotlight {
-	vec3 position;
-	vec3 direction;
 	Light light;
+	vec3 position;
 	float inner_cutoff;
+	vec3 direction;
 	float outer_cutoff;
 };
 
@@ -33,10 +39,14 @@ struct Spotlight {
 in vec3 vertex_position;
 in vec3 vertex_normal;
 
-uniform vec3 cam_position;
+layout (std140, binding = 0) uniform lighting {			// base alignment					// aligned offset
+	Directional_Light dir_light;						// 80 bytes							// 0
+	Point_Light point_lights[NB_POINT_LIGHTS];			// 320 (4 * 80) bytes				// 80
+	vec3 cam_position;									// 16 (12 + 4 pad) bytes			// 400
+};																							// sizeof(lighting): 416 bytes
+													
+
 uniform samplerCube skybox;
-uniform Directional_Light dir_light;
-uniform Point_Light point_lights[NB_POINT_LIGHTS];
 
 out vec4 fragment_color;
 
