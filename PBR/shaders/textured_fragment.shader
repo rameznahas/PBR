@@ -47,12 +47,12 @@ in vec3 vertex_position;
 in vec3 vertex_normal;
 in vec2 UV;
 
-layout(std140, binding = 0) uniform lighting{			// base alignment					// aligned offset
+layout (std140, binding = 0) uniform lighting {			// base alignment					// aligned offset
 	Directional_Light dir_light;						// 80 bytes							// 0
 	Point_Light point_lights[NB_POINT_LIGHTS];			// 320 (4 * 80) bytes				// 80
 	vec3 cam_position;									// 16 (12 + 4 pad) bytes			// 400
 };																							// sizeof(lighting): 416 bytes
-																					// sizeof(lighting): 476 bytes
+																							// sizeof(lighting): 476 bytes
 
 uniform Spotlight spotlight;
 uniform Material material;
