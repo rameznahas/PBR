@@ -21,6 +21,7 @@ int main() {
 	Model backpack_textured("./assets/models/backpack/backpack.obj");
 	Model backpack_mirror("./assets/models/backpack_mirror/backpack.obj");
 	backpack_mirror.M = glm::translate(backpack_mirror.M, backpack_mirror_pos);
+
 	stbi_set_flip_vertically_on_load(false);
 
 	GLuint VAO_light, VBO_light, EBO_light;
@@ -52,14 +53,32 @@ int main() {
 
 	glBindVertexArray(0);
 
-	std::vector<std::string> cubemaps{
-		"./assets/skybox/right.jpg",
-		"./assets/skybox/left.jpg",
-		"./assets/skybox/top.jpg",
-		"./assets/skybox/bottom.jpg",
-		"./assets/skybox/front.jpg",
-		"./assets/skybox/back.jpg"
-	};
+	GLuint skybox = load_cubemap(cubemaps);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
+	program_skybox.use();
+	program_skybox.set_int("skybox", 1);
+
+	GLuint UBO_lighting;
+	glGenBuffers(1, &UBO_lighting);
+	glBindBuffer(GL_UNIFORM_BUFFER, UBO_lighting);
+	glBufferData(GL_UNIFORM_BUFFER, 416, nullptr, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBO_lighting);
+
+	GLsizeiptr offset = 0;
+	// we dont set directional light kc, kl, kq because it doesn't use them.
+	// so we increment offset by PADDED_VEC3 directly
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directional_light.color[0]);
+	offset += PADDED_VEC3;
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directional_light.ambient[0]);
+	offset += PADDED_VEC3;
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directional_light.diffuse[0]);
+	offset += PADDED_VEC3;
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directional_light.specular[0]);
+	offset += PADDED_VEC3;
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directional_light.direction[0]);
+	offset += PADDED_VEC3;
 
 	glm::mat4 M_point_lights[NB_POINT_LIGHTS];
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
@@ -67,13 +86,24 @@ int main() {
 		M_point_lights[i] = glm::translate(M_point_lights[i], point_lights[i].position);
 		M_point_lights[i] = glm::scale(M_point_lights[i], glm::vec3(0.1f));
 
-		std::string idx = std::to_string(i);
-		set_point_light_uniforms(program_textured, idx, i);
-		set_point_light_uniforms(program_mirror, idx, i);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &point_lights[i].color[0]);
+		offset += sizeof(glm::vec3);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(float), &point_lights[i].kc);
+		offset += sizeof(float);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &point_lights[i].ambient[0]);
+		offset += sizeof(glm::vec3);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(float), &point_lights[i].kl);
+		offset += sizeof(float);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &point_lights[i].diffuse[0]);
+		offset += sizeof(glm::vec3);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(float), &point_lights[i].kq);
+		offset += sizeof(float);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &point_lights[i].specular[0]);
+		offset += PADDED_VEC3;
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &point_lights[i].position[0]);
+		offset += PADDED_VEC3;
 	}
-
-	set_dir_light_uniforms(program_textured);
-	set_dir_light_uniforms(program_mirror);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	GLuint FBO, dynamic_skybox, RBO;
 	glGenFramebuffers(1, &FBO);
@@ -106,12 +136,6 @@ int main() {
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	GLuint skybox = load_cubemap(cubemaps);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox);
-	program_skybox.use();
-	program_skybox.set_int("skybox", 1);
-
 	double last_frame = 0.0f;
 	double current_frame;
 
@@ -120,6 +144,10 @@ int main() {
 		current_frame = glfwGetTime();
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
+
+		glBindBuffer(GL_UNIFORM_BUFFER, UBO_lighting);
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &camera.position[0]);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		
 		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 		glViewport(0, 0, CUBEMAP_RESOLUTION, CUBEMAP_RESOLUTION);
@@ -142,7 +170,6 @@ int main() {
 			program_textured.set_mat4("M", &backpack_textured.M[0][0]);
 			program_textured.set_mat4("MVP", &MVP[0][0]);
 			program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
-			program_textured.set_vec3("cam_position", &environment_mapping_cameras[i].position[0]);
 
 			backpack_textured.draw(program_textured);
 
@@ -173,7 +200,6 @@ int main() {
 		program_textured.set_mat4("M", &backpack_textured.M[0][0]);
 		program_textured.set_mat4("MVP", &MVP[0][0]);
 		program_textured.set_mat3("normal_matrix", &normal_matrix[0][0]);
-		program_textured.set_vec3("cam_position", &camera.position[0]);
 
 		backpack_textured.draw(program_textured);
 
@@ -184,7 +210,6 @@ int main() {
 		program_mirror.set_mat4("M", &backpack_mirror.M[0][0]);
 		program_mirror.set_mat4("MVP", &MVP[0][0]);
 		program_mirror.set_mat3("normal_matrix", &normal_matrix[0][0]);
-		program_mirror.set_vec3("cam_position", &camera.position[0]);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, dynamic_skybox);
@@ -258,7 +283,7 @@ bool init() {
 	glfwSetKeyCallback(window(), key_callback);
 	glfwSetCursorPosCallback(window(), cursor_callback);
 	glfwSetScrollCallback(window(), scroll_callback);
-	glfwSetMouseButtonCallback(window(), mouse_button_callback);
+	//glfwSetMouseButtonCallback(window(), mouse_button_callback);
 
 	if (glewInit() != GLEW_OK) {
 		std::cout << "ERROR::GLEW::INIT" << std::endl;

@@ -90,6 +90,17 @@ Spotlight spotlight(
 glm::mat4 V, P, MVP;
 glm::mat3 normal_matrix;
 
+std::vector<std::string> cubemaps{
+	"./assets/skybox/right.jpg",
+	"./assets/skybox/left.jpg",
+	"./assets/skybox/top.jpg",
+	"./assets/skybox/bottom.jpg",
+	"./assets/skybox/front.jpg",
+	"./assets/skybox/back.jpg"
+};
+
+const unsigned int PADDED_VEC3 = sizeof(glm::vec3) + 4;
+
 double delta_time = 0.0;
 bool mouse_button_down = false;
 float angle_x = 0.0f;
