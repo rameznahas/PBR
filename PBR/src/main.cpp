@@ -17,6 +17,7 @@ int main() {
 	Shader program_mirror("./shaders/mirror_vertex.shader", "./shaders/mirror_fragment.shader");
 	Shader program_light("./shaders/light_vertex.shader", "./shaders/light_fragment.shader");
 	Shader program_skybox("./shaders/skybox_vertex.shader", "./shaders/skybox_fragment.shader");
+	Shader program_gamma("./shaders/gamma_vertex.shader", "./shaders/gamma_fragment.shader");
 
 	Model backpack_textured("./assets/models/backpack/backpack.obj");
 	Model backpack_mirror("./assets/models/backpack_mirror/backpack.obj");
@@ -136,6 +137,47 @@ int main() {
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	GLuint VAOgamma, VBOgamma;
+	glGenVertexArrays(1, &VAOgamma);
+	glBindVertexArray(VAOgamma);
+
+	glGenBuffers(1, &VBOgamma);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOgamma);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glBindVertexArray(0);
+
+	GLuint FBOgamma, texGamma, RBOgamma;
+	glGenFramebuffers(1, &FBOgamma);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOgamma);
+	glDrawBuffer(GL_COLOR_ATTACHMENT1);
+
+	glGenTextures(1, &texGamma);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, texGamma);
+	program_gamma.use();
+	program_gamma.set_int("tex", 2);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, window.width, window.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenRenderbuffers(1, &RBOgamma);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBOgamma);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, window.width, window.height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texGamma, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBOgamma);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	double last_frame = 0.0f;
 	double current_frame;
 
@@ -186,7 +228,7 @@ int main() {
 			glDepthFunc(GL_LESS);
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, FBOgamma);
 		glViewport(0, 0, window.width, window.height);
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -238,6 +280,17 @@ int main() {
 		program_skybox.set_mat4("VP", &VP[0][0]);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDepthFunc(GL_LESS);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glBindVertexArray(VAOgamma);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, texGamma);
+
+		program_gamma.use();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		// swap color buffer
 		glfwSwapBuffers(window());

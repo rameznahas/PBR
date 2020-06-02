@@ -148,6 +148,8 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <ClInclude Include="src\Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\gamma_fragment.shader" />
+    <None Include="shaders\gamma_vertex.shader" />
     <None Include="shaders\mirror_fragment.shader" />
     <None Include="shaders\mirror_vertex.shader" />
     <None Include="shaders\textured_fragment.shader" />
