@@ -73,11 +73,35 @@ int main() {
 		std::cout << "ERROR::TEXTURE::LOADING" << std::endl;
 	}
 
-	GLuint UBOcube;
-	glGenBuffers(1, &UBOcube);
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOcube);
+	GLuint UBOmodels, UBOlighting;
+	glGenBuffers(1, &UBOmodels);
+	glBindBuffer(GL_UNIFORM_BUFFER, UBOmodels);
 	glBufferData(GL_UNIFORM_BUFFER, 176, nullptr, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOcube);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOmodels);
+
+	glGenBuffers(1, &UBOlighting);
+	glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
+	glBufferData(GL_UNIFORM_BUFFER, 96, nullptr, GL_STATIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, UBOlighting);
+
+	unsigned int offset = 0;
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directionalLight.color[0]);
+	offset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &directionalLight.kc);
+	offset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directionalLight.ambient[0]);
+	offset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &directionalLight.kl);
+	offset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directionalLight.diffuse[0]);
+	offset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &directionalLight.kq);
+	offset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &directionalLight.specular[0]);
+	offset += sizeof(glm::vec4);
+	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec4), &directionalLight.direction[0]);
+	offset += sizeof(glm::vec4);
+
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	double last_frame = 0.0f;
@@ -101,24 +125,31 @@ int main() {
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, tex);
 
-		glBindBuffer(GL_UNIFORM_BUFFER, UBOcube);
-
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
+		
 		V = camera.get_view_matrix();
+		glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &camera.position[0]);
+
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOmodels);
+
 		M = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f));
 		M = glm::scale(M, glm::vec3(0.5f));
 		MVP = P * V * M;
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(M)));
 		modelsBufferSubData();
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		M = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f));
 		M = glm::scale(M, glm::vec3(0.5f));
 		MVP = P * V * M;
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(M)));
 		modelsBufferSubData();
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		M = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f));
 		M = glm::rotate(M, glm::radians(60.0f), glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
 		M = glm::scale(M, glm::vec3(0.5f));
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(M)));
 		MVP = P * V * M;
 		modelsBufferSubData();
 		glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -127,6 +158,7 @@ int main() {
 
 		M = glm::mat4(1.0f);
 		MVP = P * V * M;
+		normal_matrix = glm::mat3(glm::transpose(glm::inverse(M)));
 		modelsBufferSubData();
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -200,10 +232,10 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.walk_around(camera.forward, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(-camera.forward, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(-camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.forward, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -275,6 +307,6 @@ void modelsBufferSubData() {
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[0][0]);
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[0][0]);
 	for (unsigned int i = 0; i < 3; ++i) {
-		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * PADDED_VEC3, PADDED_VEC3, &normal_matrix[i][0]);
+		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec4), &normal_matrix[i][0]);
 	}
 }

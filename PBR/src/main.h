@@ -6,6 +6,7 @@
 #include "Shader.h"
 #include "Model.h"
 
+#define CAM_SPEED 3.0f
 #define NB_POINT_LIGHTS 4
 #define NB_CUBEMAP_FACES 6
 #define CUBEMAP_RESOLUTION 2048
@@ -32,16 +33,15 @@ Camera camera(
 	45.0f
 );
 
-Directional_Light directional_light(
-	glm::vec3(100.0f, -100.0f, 100.0f),
-	glm::vec3(1.0f),
-	glm::vec3(0.05f), glm::vec3(0.4f), glm::vec3(0.5f)
+Directional_Light directionalLight(
+	glm::vec3(-1.0f),
+	glm::vec3(0.3f),
+	glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f)
 );
 
 glm::mat4 M, V, P, MVP;
 glm::mat3 normal_matrix;
 
-const unsigned int PADDED_VEC3 = sizeof(glm::vec3) + 4;
 const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
 
 double delta_time = 0.0;
