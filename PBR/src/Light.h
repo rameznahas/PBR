@@ -23,7 +23,7 @@ struct Light {
 };
 
 struct Point_Light : public Light {
-	Point_Light(glm::vec3 pos, glm::vec3 col, glm::vec3 ambi, glm::vec3 diff, glm::vec3 spec, float constant, float linear, float quadratic)
+	Point_Light(glm::vec3 pos, glm::vec3 col, glm::vec3 ambi, glm::vec3 diff, glm::vec3 spec, float constant = 0.0f, float linear = 0.0f, float quadratic = 0.0f)
 		:
 		Light(col, ambi, diff, spec, constant, linear, quadratic),
 		position(pos)

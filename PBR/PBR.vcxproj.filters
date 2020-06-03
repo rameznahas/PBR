@@ -61,5 +61,9 @@
     <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\modelsVertex.shader" />
     <None Include="shaders\modelsFragment.shader" />
+    <None Include="shaders\shadowMapVertex.shader" />
+    <None Include="shaders\shadowMapFragment.shader" />
+    <None Include="shaders\lightVertex.shader" />
+    <None Include="shaders\lightFragment.shader" />
   </ItemGroup>
 </Project>
