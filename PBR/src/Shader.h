@@ -8,7 +8,7 @@
 class Shader {
 public:
 	Shader() = default;
-	Shader(const char* vertex_path, const char* fragment_path);
+	Shader(const char* vertex_path, const char* fragment_path, const char* geometry_path = nullptr);
 	void use();
 	void del();
 	void set_float(const char* uniform_name, GLfloat value) const;
@@ -19,5 +19,7 @@ public:
 	GLuint id() const { return program; };
 
 private:
+	std::string readShaderFile(const char* path) const;
+	
 	GLuint program;
 };

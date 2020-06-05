@@ -13,11 +13,12 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programModels("./shaders/modelsVertex.shader", "./shaders/modelsFragment.shader");
-	Shader programShadowMap("./shaders/shadowMapVertex.shader", "./shaders/shadowMapFragment.shader");
-	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
+	Shader programRoom("./shaders/roomVertex.shader", "./shaders/cubeFragment.shader");
+	Shader programCube("./shaders/cubeVertex.shader", "./shaders/cubeFragment.shader");
+	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
+	Shader programLight("./shaders/cubeVertex.shader", "./shaders/lightFragment.shader");
 
-	GLuint VAOcube, VBOcube;
+	GLuint VAOcube, VBOcube, texCube;
 	glGenVertexArrays(1, &VAOcube);
 	glBindVertexArray(VAOcube);
 
@@ -30,23 +31,7 @@ int main() {
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
-
-	GLuint VAOplane, VBOplane;
-	glGenVertexArrays(1, &VAOplane);
-	glBindVertexArray(VAOplane);
-
-	glGenBuffers(1, &VBOplane);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOplane);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
 	glBindVertexArray(0);
-
-	GLuint texModels;
 
 	int width, height, channels;
 	stbi_set_flip_vertically_on_load(true);
@@ -58,93 +43,114 @@ int main() {
 		else if (channels == 3) format = GL_RGB;
 		else if (channels == 4) format = GL_RGBA;
 
-		glGenTextures(1, &texModels);
+		glGenTextures(1, &texCube);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texModels);
+		glBindTexture(GL_TEXTURE_2D, texCube);
+		programRoom.use();
+		programRoom.set_int("tex", 0);
+		programCube.use();
+		programCube.set_int("tex", 0);
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		programModels.use();
-		programModels.set_int("tex", 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 	else {
 		std::cout << "ERROR::TEXTURE::LOADING" << std::endl;
 	}
+	stbi_image_free(data);
 
-	GLuint UBOmodels, UBOlighting, UBOshadowMap;
-	glGenBuffers(1, &UBOmodels);
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOmodels);
-	glBufferData(GL_UNIFORM_BUFFER, 240, nullptr, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOmodels);
-
-	glGenBuffers(1, &UBOshadowMap);
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOshadowMap);
-	glBufferData(GL_UNIFORM_BUFFER, 64, nullptr, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, UBOshadowMap);
+	GLuint UBOtransforms, UBOlighting;
+	glGenBuffers(1, &UBOtransforms);
+	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
+	glBufferData(GL_UNIFORM_BUFFER, 11 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOtransforms);
 
 	glGenBuffers(1, &UBOlighting);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
-	glBufferData(GL_UNIFORM_BUFFER, 96, nullptr, GL_STATIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, 6 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, UBOlighting);
 
-	unsigned int offset = 0;
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &pointLight.color[0]);
-	offset += sizeof(glm::vec3);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &pointLight.kc);
-	offset += sizeof(GLfloat);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &pointLight.ambient[0]);
-	offset += sizeof(glm::vec3);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &pointLight.kl);
-	offset += sizeof(GLfloat);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &pointLight.diffuse[0]);
-	offset += sizeof(glm::vec3);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(GLfloat), &pointLight.kq);
-	offset += sizeof(GLfloat);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &pointLight.specular[0]);
-	offset += sizeof(glm::vec4);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec4), &pointLight.position[0]);
-	offset += sizeof(glm::vec4);
+	unsigned int lightingOffset = 0;
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &pointLight.color[0]);
+	lightingOffset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(GLfloat), &pointLight.kc);
+	lightingOffset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &pointLight.ambient[0]);
+	lightingOffset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(GLfloat), &pointLight.kl);
+	lightingOffset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &pointLight.diffuse[0]);
+	lightingOffset += sizeof(glm::vec3);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(GLfloat), &pointLight.kq);
+	lightingOffset += sizeof(GLfloat);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &pointLight.specular[0]);
+	lightingOffset += sizeof(glm::vec4);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &pointLight.position[0]);
+	lightingOffset += sizeof(glm::vec4);
+	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset + sizeof(glm::vec3), sizeof(GLfloat), &farPlane);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	GLuint FBOshadowMap, texShadowMap;
-	glGenFramebuffers(1, &FBOshadowMap);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBOshadowMap);
-	glDrawBuffer(GL_NONE); // since we are not attaching a color buffer to the fbo
-	glReadBuffer(GL_NONE); // since we are not attaching a color buffer to the fbo
+	GLuint FBOpointShadow, texPointShadow[NB_POINT_LIGHTS];
+	glGenFramebuffers(1, &FBOpointShadow);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOpointShadow);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
 
-	glGenTextures(1, &texShadowMap);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texShadowMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &glm::vec4(1.0f)[0]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
+	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		glActiveTexture(GL_TEXTURE1 + i);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
+		programCube.use();
+		programCube.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 1 + i);
+		programRoom.use();
+		programRoom.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 1 + i);
+		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		}
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-	programModels.use();
-	programModels.set_int("shadowMap", 1);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texShadowMap, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texPointShadow[0], 0);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
-	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	double last_frame = 0.0f;
 	double current_frame;
 
-	V = shadowCam.get_view_matrix();
-	P = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
-	lightSpaceMatrix = P * V;
+	P = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, farPlane);
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		pointShadowLightSpaces[i] = P * pointShadowCams[i].get_view_matrix();
+	}
+	P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 1000.0f);
 
-	P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
+	programPointShadow.use();
+	programPointShadow.set_float("farPlane", farPlane);
+
+	M[0] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
+	M[0] = glm::scale(M[0], glm::vec3(15.0f));
+	normalMatrix[0] = glm::transpose(glm::inverse(glm::mat3(M[0])));
+
+	M[2] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
+	M[2] = glm::scale(M[2], glm::vec3(0.1f));
+	normalMatrix[2] = glm::transpose(glm::inverse(glm::mat3(M[2])));
+
+	glm::mat4 Mlight = glm::translate(glm::mat4(1.0f), pointLight.position);
+	Mlight = glm::scale(Mlight, glm::vec3(0.2f));
+
+	programLight.use();
+	programLight.set_vec3("lightColor", &pointLight.color[0]);
 
 	float angle = glm::radians(60.0f);
 	// render loop
@@ -153,73 +159,63 @@ int main() {
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
-		glBindFramebuffer(GL_FRAMEBUFFER, FBOshadowMap);
-		glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glCullFace(GL_FRONT);
+		M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -9.0f));
+		M[1] = glm::rotate(M[1], angle, glm::vec3(1.0f));
+		normalMatrix[1] = glm::transpose(glm::inverse(glm::mat3(M[1])));
 
-		programShadowMap.use();
-
-		M[0] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.5f, 0.0f));
-		M[0] = glm::rotate(M[0], angle, glm::normalize(glm::vec3(0.2f, 1.3f, 1.0f)));
-		M[0] = glm::scale(M[0], glm::vec3(0.5f));
-		MVP[0] = lightSpaceMatrix * M[0];
-		normal_matrix[0] = glm::mat3(glm::transpose(glm::inverse(M[0])));
-
-		M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 0.0f, 1.0f));
-		M[1] = glm::rotate(M[1], angle, glm::normalize(glm::vec3(0.0f, 2.8f, 7.6f)));
-		M[1] = glm::scale(M[1], glm::vec3(0.5f));
-		MVP[1] = lightSpaceMatrix * M[1];
-		normal_matrix[1] = glm::mat3(glm::transpose(glm::inverse(M[1])));
-
-		M[2] = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 2.0f));
-		M[2] = glm::rotate(M[2], angle, glm::normalize(glm::vec3(1.0f, 0.0f, 1.0f)));
-		M[2] = glm::scale(M[2], glm::vec3(0.5f));
-		MVP[2] = lightSpaceMatrix * M[2];
-		normal_matrix[2] = glm::mat3(glm::transpose(glm::inverse(M[2])));
-
-		M[3] = glm::mat4(1.0f);
-		MVP[3] = lightSpaceMatrix * M[3];
-		normal_matrix[3] = glm::mat3(glm::transpose(glm::inverse(M[3])));
+		float time = (float)glfwGetTime();
+		M[3] = glm::translate(glm::mat4(1.0f), 2.0f * glm::vec3(sin(time), 0.0f, cos(time)));
+		M[3] = glm::scale(M[3], glm::vec3(0.2f));
+		normalMatrix[3] = glm::transpose(glm::inverse(glm::mat3(M[2])));
 
 		angle += glm::radians(15.0f * delta_time);
 
-		renderShadowScene(VAOcube, VAOplane, UBOshadowMap);
+		shadowPass(programPointShadow, FBOpointShadow, texPointShadow[0], VAOcube);
+
+		V = camera.get_view_matrix();
+
+		for (unsigned int i = 0; i < NB_MODELS; ++i) {
+			MVP[i] = P * V * M[i];
+		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, window.width, window.height);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glCullFace(GL_BACK);
-
-		programModels.use();
-		programModels.set_int("samples", samples);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texModels);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texShadowMap);
-
-		V = camera.get_view_matrix();
-		for (unsigned int i = 0; i < NB_MODELS; ++i) {
-			MVP[i] = P * V * M[i];
-		}
-
-		renderScene(VAOcube, VAOplane, UBOlighting, UBOmodels, offset);
 
 		glBindVertexArray(VAOcube);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texCube);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[0]);
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
+		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 
-		programLight.use();
-
-		glm::mat4 M = glm::translate(glm::mat4(1.0f), pointLight.position);
-		M = glm::scale(M, glm::vec3(0.1f));
-		glm::mat4 MVP = P * V * M;
-		programLight.set_mat4("MVP", &MVP[0][0]);
-		programLight.set_vec3("lightColor", &pointLight.color[0]);
+		programRoom.use();
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[0]);
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[0]);
+		for (unsigned int i = 0; i < 3; ++i) {
+			glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[0][i]);
+		}
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
+		programCube.use();
 
+		for (unsigned int i = 1; i < NB_MODELS; ++i) {
+			glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[i]);
+			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[i]);
+			for (unsigned int j = 0; j < 3; ++j) {
+				glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + j * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[1][j]);
+			}
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+
+		programLight.use();
+		glm::mat4 MVPlight = P * V * Mlight;
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVPlight[0][0]);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		
 		// swap color buffer
 		glfwSwapBuffers(window());
 		glfwPollEvents();
@@ -256,6 +252,7 @@ bool init() {
 	}
 
 	glfwMakeContextCurrent(window());
+	glfwSetWindowPos(window(), 0, 0);
 	glfwSetInputMode(window(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetFramebufferSizeCallback(window(), framebuffer_size_callback);
 	glfwSetKeyCallback(window(), key_callback);
@@ -363,43 +360,22 @@ GLuint load_cubemap(std::vector<std::string>& paths) {
 	return cubemap;
 }
 
-void modelsBufferSubData(int idx) {
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[idx]);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[idx]);
-	for (unsigned int i = 0; i < 3; ++i) {
-		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec4), &normal_matrix[idx][i][0]);
+void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint& texPointShadow, GLuint& VAOcube) {
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOpointShadow);
+	glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+	programPointShadow.use();
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texPointShadow, 0);
+		glClear(GL_DEPTH_BUFFER_BIT);
+		glBindVertexArray(VAOcube);
+
+		for (unsigned int j = 0; j < NB_MODELS; ++j) {
+			MVP[j] = pointShadowLightSpaces[i] * M[j];
+			programPointShadow.set_mat4("MVP", &MVP[j][0][0]);
+			programPointShadow.set_mat4("M", &M[j][0][0]);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
 	}
-}
-
-void renderShadowScene(GLuint VAOcube, GLuint VAOplane, GLuint UBOshadowMap) {
-	glBindVertexArray(VAOcube);
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOshadowMap);
-
-	for (unsigned int i = 0; i < NB_CUBES; ++i) {
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &MVP[i]);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
-
-	glBindVertexArray(VAOplane);
-
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &MVP[3]);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-}
-
-void renderScene(GLuint VAOcube, GLuint VAOplane, GLuint UBOlighting, GLuint UBOmodels, unsigned int offset) {
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
-	glBufferSubData(GL_UNIFORM_BUFFER, offset, sizeof(glm::vec3), &camera.position[0]);
-
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOmodels);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * 2, sizeof(glm::mat4), &lightSpaceMatrix[0][0]);
-	
-	glBindVertexArray(VAOcube);
-	for (unsigned int i = 0; i < NB_CUBES; ++i) {
-		modelsBufferSubData(i);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
-	glBindVertexArray(VAOplane);
-
-	modelsBufferSubData(3);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
 }

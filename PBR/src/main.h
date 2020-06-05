@@ -7,10 +7,9 @@
 #include "Model.h"
 
 #define CAM_SPEED 3.0f
-#define NB_POINT_LIGHTS 4
+#define NB_POINT_LIGHTS 2
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 4
-#define NB_CUBES 3
 #define SHADOWMAP_RESOLUTION 2048
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
@@ -24,39 +23,70 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void poll_mouse(Model& model);
 GLuint load_cubemap(std::vector<std::string>& paths);
-void modelsBufferSubData(int idx);
-void renderShadowScene(GLuint VAOcube, GLuint VAOplane, GLuint UBOshadowMap);
-void renderScene(GLuint VAOcube, GLuint VAOplane, GLuint UBOlighting, GLuint UBOmodels, unsigned int offset);
+void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint& texPointShadow, GLuint& VAOcube);
 
 Window window;
 
 Camera camera(
-	glm::vec3(0.0f, 0.0f, 3.0f),
-	glm::vec3(0.0f, 0.0f, -3.0f),
+	glm::vec3(-8.0f, 2.0f, 8.0f),
+	glm::vec3(5.0f, -2.0f, -5.0f),
 	WORLD_UP,
 	45.0f
 );
 
-Camera shadowCam(
-	glm::vec3(-2.0f, 4.0f, -1.0f),
-	glm::vec3(2.0f, -4.0f, 1.0f),
-	WORLD_UP,
-	45.0f
-);
+Camera pointShadowCams[NB_CUBEMAP_FACES] = {
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_RIGHT,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_RIGHT,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_UP,
+		WORLD_FWD,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_UP,
+		-WORLD_FWD,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_FWD,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_FWD,
+		-WORLD_UP,
+		90.0f
+	)
+};
+
+glm::mat4 pointShadowLightSpaces[NB_CUBEMAP_FACES];
+float farPlane = 30.0f;
 
 Point_Light pointLight(
-	glm::vec3(-2.0f, 4.0f, -1.0f),
-	glm::vec3(1.0f),
-	glm::vec3(0.15f), glm::vec3(0.5f), glm::vec3(1.0f)
+	glm::vec3(0.0f),
+	glm::vec3(0.3f),
+	glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+	1.0f, 0.014f, 0.0007f
 );
 
-glm::mat4 M[NB_MODELS];
-glm::mat4 MVP[NB_MODELS];
-glm::mat4 V, P;
-glm::mat3 normal_matrix[NB_MODELS];
-glm::mat4 lightSpaceMatrix;
+glm::mat4 M[NB_MODELS], V, P, MVP[NB_MODELS];
+glm::mat3 normalMatrix[NB_MODELS];
 
-const unsigned int nm_base_offset = 3 * sizeof(glm::mat4);
+const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
 
 double delta_time = 0.0;
 bool mouse_button_down = false;
@@ -112,11 +142,11 @@ GLfloat cubeVertices[] = {
 
 GLfloat planeVertices[] = {
 	// positions				// normals				// texcoords
-     25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		25.0f,  0.0f,
     -25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f,
-    -25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		 0.0f, 25.0f,
-    
      25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		25.0f,  0.0f,
+     25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
+    
+	 25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
     -25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		 0.0f, 25.0f,
-     25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f
+	-25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f
 };
