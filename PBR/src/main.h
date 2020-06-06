@@ -6,8 +6,11 @@
 #include "Shader.h"
 #include "Model.h"
 
+//#define FULLSCREEN
+#define SCREEN_GRAB
+
 #define CAM_SPEED 3.0f
-#define NB_POINT_LIGHTS 2
+#define NB_POINT_LIGHTS 6
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 4
 #define SHADOWMAP_RESOLUTION 2048
@@ -23,7 +26,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void poll_mouse(Model& model);
 GLuint load_cubemap(std::vector<std::string>& paths);
-void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint& texPointShadow, GLuint& VAOcube);
+void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, GLuint& VAOcube);
 
 Window window;
 
@@ -73,17 +76,50 @@ Camera pointShadowCams[NB_CUBEMAP_FACES] = {
 	)
 };
 
-glm::mat4 pointShadowLightSpaces[NB_CUBEMAP_FACES];
-float farPlane = 30.0f;
+glm::mat4 pointShadowLightSpaces[NB_POINT_LIGHTS][NB_CUBEMAP_FACES];
+float farPlane = 50.0f;
 
-Point_Light pointLight(
-	glm::vec3(0.0f),
-	glm::vec3(0.3f),
-	glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-	1.0f, 0.014f, 0.0007f
-);
+Point_Light pointLights[NB_POINT_LIGHTS] = {
+	Point_Light(
+		glm::vec3(-1.0f, 5.0f, -9.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	),
+	Point_Light(
+		glm::vec3(0.0f, 5.0f, -9.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	),
+	Point_Light(
+		glm::vec3(1.0f, 5.0f, -9.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	),
+	Point_Light(
+		glm::vec3(-1.0f, 5.0f, -10.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	),
+	Point_Light(
+		glm::vec3(0.0f, 5.0f, -10.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	),
+	Point_Light(
+		glm::vec3(1.0f, 5.0f, -10.0f),
+		glm::vec3(1.0f),
+		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
+		1.0f, 0.09f, 0.032f
+	)
+};
 
-glm::mat4 M[NB_MODELS], V, P, MVP[NB_MODELS];
+glm::mat4 M[NB_MODELS], V, P, VP, MVP[NB_MODELS];
+glm::mat4 Mlight[NB_POINT_LIGHTS], MVPlight[NB_POINT_LIGHTS];
 glm::mat3 normalMatrix[NB_MODELS];
 
 const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
@@ -141,7 +177,7 @@ GLfloat cubeVertices[] = {
 };
 
 GLfloat planeVertices[] = {
-	// positions				// normals				// texcoords
+	// positions				// normals				// uvs
     -25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f,
      25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		25.0f,  0.0f,
      25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
@@ -149,4 +185,14 @@ GLfloat planeVertices[] = {
 	 25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
     -25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		 0.0f, 25.0f,
 	-25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f
+};
+
+GLfloat quadVertices[] = {
+	// positions		// uvs
+	-1.0f, -1.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f,		0.0f, 0.0f
 };

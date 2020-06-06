@@ -59,11 +59,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\outline_fragment.shader" />
-    <None Include="shaders\roomVertex.shader" />
-    <None Include="shaders\cubeFragment.shader" />
-    <None Include="shaders\cubeVertex.shader" />
     <None Include="shaders\pointShadowVertex.shader" />
     <None Include="shaders\pointShadowFragment.shader" />
     <None Include="shaders\lightFragment.shader" />
+    <None Include="shaders\hdrVertex.shader" />
+    <None Include="shaders\hdrFragment.shader" />
+    <None Include="shaders\roomLightingVertex.shader" />
+    <None Include="shaders\lightingFragment.shader" />
+    <None Include="shaders\cubeLightingVertex.shader" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 #version 430 core
 #define NB_SAMPLES 20
-#define NB_POINT_LIGHTS 2
+#define NB_POINT_LIGHTS 6
 
 struct Light {
 	vec3 color;
@@ -23,11 +23,11 @@ in VS_OUT {
 	vec2 uv;
 } fsIn;
 
-// size: 96 bytes
+// size: 496 bytes
 layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned offset
-	PointLight pointLight;							// 80 bytes			// 0
-	vec3 viewPos;									// 12 bytes			// 80
-	float farPlane;									//  4 bytes			// 92
+	PointLight pointLight[NB_POINT_LIGHTS];			// 160 bytes		// 0
+	vec3 viewPos;									//  12 bytes		// 160
+	float farPlane;									//   4 bytes		// 172
 };
 
 uniform sampler2D tex;
@@ -45,27 +45,30 @@ vec3 gridSamplingDisk[NB_SAMPLES] = {
 };
 
 float attenuation(Light light, vec3 fragToLight);
-float shadow(vec3 fragToView);
+float shadow(vec3 fragToView, unsigned int idx);
 
 void main() {
-	Light light = pointLight.light;
-	vec3 fragToLight = pointLight.position - fsIn.position;
-	vec3 fragToView = viewPos - fsIn.position;
+	color = vec4(0.0f);
 
+	vec3 fragToView = viewPos - fsIn.position;
 	vec3 diff = texture(tex, fsIn.uv).rgb;
 
-	vec3 ambient = light.ambient * diff;
+	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		Light light = pointLight[i].light;
+		vec3 fragToLight = pointLight[i].position - fsIn.position;
 
-	vec3 lightDir = normalize(fragToLight);
-	float diffAngle = max(dot(lightDir, fsIn.normal), 0.0f);
-	vec3 diffuse = light.color * diffAngle * diff;
+		vec3 ambient = light.ambient * diff;
 
-	vec3 viewDir = normalize(fragToView);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	float specAngle = pow(max(dot(halfwayDir, fsIn.normal), 0.0f), 64.0f);
-	vec3 specular = light.color * specAngle * diff;
-	
-	color = vec4((ambient + (diffuse + specular) * shadow(fragToView)) * attenuation(light, fragToLight), 1.0f);
+		vec3 lightDir = normalize(fragToLight);
+		float diffAngle = max(dot(lightDir, fsIn.normal), 0.0f);
+		vec3 diffuse = light.color * diffAngle * diff;
+
+		vec3 viewDir = normalize(fragToView);
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		float specAngle = pow(max(dot(halfwayDir, fsIn.normal), 0.0f), 64.0f);
+		vec3 specular = light.color * specAngle * diff;
+		color += vec4((ambient + (diffuse + specular) * shadow(fragToView, i)) * attenuation(light, fragToLight), 1.0f);
+	}
 }
 
 float attenuation(Light light, vec3 fragToLight) {
@@ -73,18 +76,18 @@ float attenuation(Light light, vec3 fragToLight) {
 	return 1.0f / (light.kc + light.kl * distance + light.kq * pow(distance, 2.0f));
 }
 
-float shadow(vec3 fragToView) {
+float shadow(vec3 fragToView, unsigned int idx) {
 	float shadow = 0.0f;
 	float bias = 0.05f;
 	float viewDistance = length(fragToView);
-	float diskRadius = (1.0f + (viewDistance / farPlane)) / 25.0f;
+	float diskRadius = (1.0f + (viewDistance / farPlane)) / 50.0f;
 
-	vec3 lightToFrag = fsIn.position - pointLight.position;
+	vec3 lightToFrag = fsIn.position - pointLight[idx].position;
 	float currentDepth = length(lightToFrag);
 
 	for (unsigned int i = 0; i < NB_SAMPLES; ++i) {
-		float closestDepth = texture(pointShadow[0], lightToFrag + gridSamplingDisk[i] * diskRadius).r * farPlane;
-		shadow += currentDepth - bias < closestDepth ? 1.0f : 0.0f;
+		float closestDepth = texture(pointShadow[idx], lightToFrag + gridSamplingDisk[i] * diskRadius).r * farPlane;
+		shadow += currentDepth - bias < closestDepth ? 1.0f : 0.05f;
 	}
 	return shadow / NB_SAMPLES;
 }
