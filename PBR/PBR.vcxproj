@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -148,7 +148,7 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <ClInclude Include="src\Window.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\lightingFragment.shader" />
+    <None Include="shaders\cubeLightingFragment.shader" />
     <None Include="shaders\cubeLightingVertex.shader" />
     <None Include="shaders\hdrFragment.shader" />
     <None Include="shaders\hdrVertex.shader" />
@@ -156,6 +156,7 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\pointShadowFragment.shader" />
     <None Include="shaders\pointShadowVertex.shader" />
+    <None Include="shaders\roomLightingFragment.shader" />
     <None Include="shaders\roomLightingVertex.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

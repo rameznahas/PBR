@@ -65,7 +65,8 @@
     <None Include="shaders\hdrVertex.shader" />
     <None Include="shaders\hdrFragment.shader" />
     <None Include="shaders\roomLightingVertex.shader" />
-    <None Include="shaders\lightingFragment.shader" />
     <None Include="shaders\cubeLightingVertex.shader" />
+    <None Include="shaders\roomLightingFragment.shader" />
+    <None Include="shaders\cubeLightingFragment.shader" />
   </ItemGroup>
 </Project>

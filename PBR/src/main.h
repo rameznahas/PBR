@@ -13,6 +13,7 @@
 #define NB_POINT_LIGHTS 6
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 4
+#define NB_ROOM_TEX 2
 #define SHADOWMAP_RESOLUTION 2048
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
@@ -26,7 +27,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void poll_mouse(Model& model);
 GLuint load_cubemap(std::vector<std::string>& paths);
+GLuint loadTexture(const char* path, GLenum tex);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, GLuint& VAOcube);
+void computeTB();
 
 Window window;
 
@@ -126,65 +129,105 @@ const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
 
 double delta_time = 0.0;
 bool mouse_button_down = false;
+bool normalMapping = true;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
 int samples = 3;
 
 GLfloat cubeVertices[] = {
-	// positions				// normals			// uvs
+	// positions				 // normals					// uvs
 	// back face
-	-1.0f, -1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 0.0f, 0.0f, // bottom-left
-	 1.0f,  1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 1.0f, 1.0f, // top-right
-	 1.0f, -1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 1.0f, 0.0f, // bottom-right         
-	 1.0f,  1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 1.0f, 1.0f, // top-right
-	-1.0f, -1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 0.0f, 0.0f, // bottom-left
-	-1.0f,  1.0f, -1.0f,		0.0f,  0.0f,		-1.0f, 0.0f, 1.0f, // top-left
-	// front face				
-	-1.0f, -1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 0.0f, 0.0f, // bottom-left
-	 1.0f, -1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 1.0f, 0.0f, // bottom-right
-	 1.0f,  1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 1.0f, 1.0f, // top-right
-	 1.0f,  1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 1.0f, 1.0f, // top-right
-	-1.0f,  1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 0.0f, 1.0f, // top-left
-	-1.0f, -1.0f,  1.0f,		0.0f,  0.0f,		 1.0f, 0.0f, 0.0f, // bottom-left
-	// left face
-	-1.0f,  1.0f,  1.0f,	-	1.0f,  0.0f,		 0.0f, 1.0f, 0.0f, // top-right
-	-1.0f,  1.0f, -1.0f,	-	1.0f,  0.0f,		 0.0f, 1.0f, 1.0f, // top-left
-	-1.0f, -1.0f, -1.0f,	-	1.0f,  0.0f,		 0.0f, 0.0f, 1.0f, // bottom-left
-	-1.0f, -1.0f, -1.0f,	-	1.0f,  0.0f,		 0.0f, 0.0f, 1.0f, // bottom-left
-	-1.0f, -1.0f,  1.0f,	-	1.0f,  0.0f,		 0.0f, 0.0f, 0.0f, // bottom-right
-	-1.0f,  1.0f,  1.0f,	-	1.0f,  0.0f,		 0.0f, 1.0f, 0.0f, // top-right
+	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	// front face				 	    
+	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
+	// left face					    
+	-1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	-1.0f, -1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
+	-1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,	1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,	1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
 	// right face
-	 1.0f,  1.0f,  1.0f,		1.0f,  0.0f,		 0.0f, 1.0f, 0.0f, // top-left
-	 1.0f, -1.0f, -1.0f,		1.0f,  0.0f,		 0.0f, 0.0f, 1.0f, // bottom-right
-	 1.0f,  1.0f, -1.0f,		1.0f,  0.0f,		 0.0f, 1.0f, 1.0f, // top-right         
-	 1.0f, -1.0f, -1.0f,		1.0f,  0.0f,		 0.0f, 0.0f, 1.0f, // bottom-right
-	 1.0f,  1.0f,  1.0f,		1.0f,  0.0f,		 0.0f, 1.0f, 0.0f, // top-left
-	 1.0f, -1.0f,  1.0f,		1.0f,  0.0f,		 0.0f, 0.0f, 0.0f, // bottom-left     
-	// bottom face				
-	-1.0f, -1.0f, -1.0f,		0.0f, -1.0f,		 0.0f, 0.0f, 1.0f, // top-right
-	 1.0f, -1.0f, -1.0f,		0.0f, -1.0f,		 0.0f, 1.0f, 1.0f, // top-left
-	 1.0f, -1.0f,  1.0f,		0.0f, -1.0f,		 0.0f, 1.0f, 0.0f, // bottom-left
-	 1.0f, -1.0f,  1.0f,		0.0f, -1.0f,		 0.0f, 1.0f, 0.0f, // bottom-left
-	-1.0f, -1.0f,  1.0f,		0.0f, -1.0f,		 0.0f, 0.0f, 0.0f, // bottom-right
-	-1.0f, -1.0f, -1.0f,		0.0f, -1.0f,		 0.0f, 0.0f, 1.0f, // top-right
-	// top face					
-	-1.0f,  1.0f, -1.0f,		0.0f,  1.0f,		 0.0f, 0.0f, 1.0f, // top-left
-	 1.0f,  1.0f , 1.0f,		0.0f,  1.0f,		 0.0f, 1.0f, 0.0f, // bottom-right
-	 1.0f,  1.0f, -1.0f,		0.0f,  1.0f,		 0.0f, 1.0f, 1.0f, // top-right     
-	 1.0f,  1.0f,  1.0f,		0.0f,  1.0f,		 0.0f, 1.0f, 0.0f, // bottom-right
-	-1.0f,  1.0f, -1.0f,		0.0f,  1.0f,		 0.0f, 0.0f, 1.0f, // top-left
-	-1.0f,  1.0f,  1.0f,		0.0f,  1.0f,		 0.0f, 0.0f, 0.0f  // bottom-left
+	 1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
+	 1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	// bottom face
+	-1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
+	// top face
+	-1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f
 };
 
-GLfloat planeVertices[] = {
-	// positions				// normals				// uvs
-    -25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f,
-     25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		25.0f,  0.0f,
-     25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
-    
-	 25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		25.0f, 25.0f,
-    -25.0f, -0.5f, -25.0f,		0.0f, 1.0f, 0.0f,		 0.0f, 25.0f,
-	-25.0f, -0.5f,  25.0f,		0.0f, 1.0f, 0.0f,		 0.0f,  0.0f
+// positions // normals // uvs // tangents // bitangents
+GLfloat roomVerticesTB[504];
+
+// winding order reversed (CW)
+GLfloat roomVertices[] = {
+	// positions				 // normals					// uvs
+	// back face
+	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
+	// front face	
+	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
+	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
+	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	// left face	
+	-1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	-1.0f, -1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
+	-1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	// right face
+	 1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
+	 1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
+	// bottom face
+	-1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
+	// top face
+	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 0.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
+	 1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
+	-1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f
 };
 
 GLfloat quadVertices[] = {

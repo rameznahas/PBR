@@ -13,11 +13,37 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programLightingRoom("./shaders/roomLightingVertex.shader", "./shaders/lightingFragment.shader");
-	Shader programLightingCube("./shaders/cubeLightingVertex.shader", "./shaders/LightingFragment.shader");
+	Shader programLightingRoom("./shaders/roomLightingVertex.shader", "./shaders/roomLightingFragment.shader");
+	Shader programLightingCube("./shaders/cubeLightingVertex.shader", "./shaders/cubeLightingFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
 	Shader programLight("./shaders/cubeLightingVertex.shader", "./shaders/lightFragment.shader");
 	Shader programHDR("./shaders/hdrVertex.shader", "./shaders/hdrFragment.shader");
+
+	computeTB();
+
+	GLuint VAOroom, VBOroom, texRoom[NB_ROOM_TEX];
+	glGenVertexArrays(1, &VAOroom);
+	glBindVertexArray(VAOroom);
+
+	glGenBuffers(1, &VBOroom);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOroom);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(roomVerticesTB), roomVerticesTB, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
+	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(11 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
+	glEnableVertexAttribArray(4);
+
+	programLightingRoom.use();
+	texRoom[0] = loadTexture("./assets/images/brickwall/brickwall.jpg", GL_TEXTURE0);
+	programLightingRoom.set_int("diffuseMap", 0);
+	texRoom[1] = loadTexture("./assets/images/brickwall/brickwall_normal.jpg", GL_TEXTURE1);
+	programLightingRoom.set_int("normalMap", 1);
 
 	GLuint VAOcube, VBOcube, texCube;
 	glGenVertexArrays(1, &VAOcube);
@@ -33,35 +59,9 @@ int main() {
 	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
 
-	int width, height, channels;
-	stbi_set_flip_vertically_on_load(true);
-	unsigned char* data = stbi_load("./assets/images/wood.png", &width, &height, &channels, 0);
-	if (data) {
-		int format;
-		if		(channels == 1) format = GL_RED;
-		else if (channels == 2) format = GL_RG;
-		else if (channels == 3) format = GL_RGB;
-		else if (channels == 4) format = GL_RGBA;
-
-		glGenTextures(1, &texCube);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texCube);
-		programLightingRoom.use();
-		programLightingRoom.set_int("tex", 0);
-		programLightingCube.use();
-		programLightingCube.set_int("tex", 0);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_LINEAR);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
-	else {
-		std::cout << "ERROR::TEXTURE::LOADING" << std::endl;
-	}
-	stbi_image_free(data);
+	programLightingCube.use();
+	texCube = loadTexture("./assets/images/wood.png", GL_TEXTURE0);
+	programLightingCube.set_int("diffuseMap", 0);
 
 	GLuint VAOhdr, VBOhdr;
 	glGenVertexArrays(1, &VAOhdr);
@@ -118,12 +118,12 @@ int main() {
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-		glActiveTexture(GL_TEXTURE1 + i);
+		glActiveTexture(GL_TEXTURE2 + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 		programLightingCube.use();
-		programLightingCube.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 1 + i);
+		programLightingCube.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 2 + i);
 		programLightingRoom.use();
-		programLightingRoom.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 1 + i);
+		programLightingRoom.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 2 + i);
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		}
@@ -147,9 +147,9 @@ int main() {
 
 	glGenTextures(1, &texHDR);
 	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texHDR);
 	programHDR.use();
 	programHDR.set_int("hdrTex", 0);
-	glBindTexture(GL_TEXTURE_2D, texHDR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -210,11 +210,16 @@ int main() {
 		float time = (float)glfwGetTime();
 		M[3] = glm::translate(glm::mat4(1.0f), 2.0f * glm::vec3(sin(time), 0.0f, cos(time)));
 		M[3] = glm::scale(M[3], glm::vec3(0.2f));
-		normalMatrix[3] = glm::transpose(glm::inverse(glm::mat3(M[2])));
+		normalMatrix[3] = glm::transpose(glm::inverse(glm::mat3(M[3])));
 
 		angle += (float)glm::radians(15.0f * delta_time);
 		
 		shadowPass(programPointShadow, FBOpointShadow, texPointShadow, VAOcube);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
+		glViewport(0, 0, window.width, window.height);
+		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		V = camera.get_view_matrix();
 		VP = P * V;
@@ -223,23 +228,22 @@ int main() {
 			MVP[i] = VP * M[i];
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
-		glViewport(0, 0, window.width, window.height);
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glBindVertexArray(VAOcube);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texCube);
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(GL_TEXTURE1 + i);
+			glActiveTexture(GL_TEXTURE2 + i);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 		}
-		
+
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
+		
+		glBindVertexArray(VAOroom);
+		if (normalMapping) programLightingRoom.use();
+		else programLightingCube.use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texRoom[0]);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texRoom[1]);
 
-		programLightingRoom.use();
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[0]);
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[0]);
@@ -248,12 +252,15 @@ int main() {
 		}
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
+		glBindVertexArray(VAOcube);
 		programLightingCube.use();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texCube);
 		for (unsigned int i = 1; i < NB_MODELS; ++i) {
 			glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[i]);
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[i]);
 			for (unsigned int j = 0; j < 3; ++j) {
-				glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + j * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[1][j]);
+				glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + j * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i][j]);
 			}
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
@@ -365,8 +372,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) samples += 2;
-	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) samples -= 2;
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		normalMapping = !normalMapping;
+	}
+		
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -434,6 +443,38 @@ GLuint load_cubemap(std::vector<std::string>& paths) {
 	return cubemap;
 }
 
+GLuint loadTexture(const char* path, GLenum tex) {
+	GLuint texture;
+
+	int width, height, channels;
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char* data = stbi_load(path, &width, &height, &channels, 0);
+	if (data) {
+		int format;
+		if (channels == 1) format = GL_RED;
+		else if (channels == 2) format = GL_RG;
+		else if (channels == 3) format = GL_RGB;
+		else if (channels == 4) format = GL_RGBA;
+
+		glGenTextures(1, &texture);
+		glActiveTexture(tex);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	else {
+		std::cout << "ERROR::TEXTURE::LOADING" << std::endl;
+	}
+	stbi_image_free(data);
+
+	return texture;
+}
+
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, GLuint& VAOcube) {
 	glBindFramebuffer(GL_FRAMEBUFFER, FBOpointShadow);
 	glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
@@ -454,5 +495,68 @@ void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texP
 				glDrawArrays(GL_TRIANGLES, 0, 36);
 			}
 		}
+	}
+}
+
+void computeTB() {
+	const unsigned int NB_FACES = 6;
+	const unsigned int NB_POS = 3;
+	unsigned int stride = 8;
+	unsigned int nextFaceStride = 3 * stride;
+
+	float* posPtr = roomVertices;
+	float* uvPtr = posPtr + 6;
+
+	glm::vec3 pos[NB_POS];
+	glm::vec2 uv[NB_POS];
+
+	glm::vec3 Ts[NB_FACES], Bs[NB_FACES];
+
+	for (unsigned int i = 0; i < NB_FACES; ++i) {
+		for (unsigned int j = 0; j < NB_POS; ++j) {
+			pos[j] = glm::vec3(posPtr[0], posPtr[1], posPtr[2]);
+			uv[j] = glm::vec2(uvPtr[0], uvPtr[1]);
+			posPtr += stride;
+			uvPtr += stride;
+		}
+
+		glm::vec3 E1(pos[1] - pos[0]);
+		glm::vec3 E2(pos[2] - pos[1]);
+		glm::vec2 UV1(uv[1] - uv[0]);
+		glm::vec2 UV2(uv[2] - uv[1]);
+
+		float detInverse = 1.0f / (UV1[0] * UV2[1] - UV2[0] * UV1[1]);
+		
+		glm::mat3x2 E;
+		E[0] = glm::vec2(E1[0], E2[0]);
+		E[1] = glm::vec2(E1[1], E2[1]);
+		E[2] = glm::vec2(E1[2], E2[2]);
+
+		Ts[i] = detInverse * glm::vec2(UV2[1], -UV1[1]) * E;
+		Bs[i] = detInverse * glm::vec2(-UV2[0], UV1[0]) * E;
+
+		posPtr += nextFaceStride;
+		uvPtr += nextFaceStride;
+	}
+	
+	const unsigned int NB_VERTICES = 6 * NB_FACES;
+	unsigned int start = 0;
+	unsigned int end = start + stride;
+
+	for (unsigned int i = 0; i < NB_VERTICES; ++i) {
+		unsigned int offset = i * 6;
+		for (unsigned int j = start; j < end; ++j) {
+			roomVerticesTB[j + offset] = roomVertices[j];
+		}
+		start = end;
+		end = start + stride;
+
+		unsigned int idx = i / NB_FACES;
+		roomVerticesTB[start + offset + 0] = Ts[idx][0];
+		roomVerticesTB[start + offset + 1] = Ts[idx][1];
+		roomVerticesTB[start + offset + 2] = Ts[idx][2];
+		roomVerticesTB[start + offset + 3] = Bs[idx][0];
+		roomVerticesTB[start + offset + 4] = Bs[idx][1];
+		roomVerticesTB[start + offset + 5] = Bs[idx][2];
 	}
 }
