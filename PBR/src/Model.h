@@ -10,8 +10,8 @@
 
 class Model {
 public:
-	Model(std::string path);
-	void draw(Shader shader) const;
+	Model(std::string path, bool optimizeMesh);
+	void draw(const Shader& shader, GLenum startingTexSlot, std::string suffix = "") const;
 
 	glm::mat4 M;
 

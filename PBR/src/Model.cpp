@@ -3,13 +3,15 @@
 #include "stb_image.h"
 #include "Model.h"
 
-Model::Model(std::string path) 
+Model::Model(std::string path, bool optimizeMesh)
 	:
 	M(1.0f)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+	unsigned int flags = aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
+	if (optimizeMesh) flags |= aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph;
 
+	const aiScene* scene = importer.ReadFile(path, flags);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
 		delete scene;
@@ -22,9 +24,9 @@ Model::Model(std::string path)
 	process_node(scene->mRootNode, scene);
 }
 
-void Model::draw(Shader shader) const {
+void Model::draw(const Shader& shader, GLenum startingTexSlot, std::string suffix) const {
 	for (unsigned int i = 0; i < meshes.size(); ++i)
-		meshes[i].draw(shader);
+		meshes[i].draw(shader, startingTexSlot, suffix);
 }
 
 void Model::process_node(aiNode* node, const aiScene* scene) {
@@ -58,6 +60,12 @@ Mesh Model::process_mesh(aiMesh* mesh, const aiScene* scene) {
 			mesh->mNormals[i].z
 		);
 
+		vertex.tangent = glm::vec3(
+			mesh->mTangents[i].x,
+			mesh->mTangents[i].y,
+			mesh->mTangents[i].z
+		);
+
 		if (mesh->mTextureCoords[0]) {
 			vertex.uvs = glm::vec2(
 				mesh->mTextureCoords[0][i].x,
@@ -81,6 +89,9 @@ Mesh Model::process_mesh(aiMesh* mesh, const aiScene* scene) {
 
 	std::vector<Texture> specular = load_material_textures(material, aiTextureType_SPECULAR, "specular");
 	textures.insert(textures.end(), specular.begin(), specular.end());
+
+	std::vector<Texture> normals = load_material_textures(material, aiTextureType_HEIGHT, "normal");
+	textures.insert(textures.end(), normals.begin(), normals.end());
 
 	return Mesh(vertices, indices, textures);
 }

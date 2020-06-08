@@ -148,16 +148,17 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <ClInclude Include="src\Window.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\cubeLightingFragment.shader" />
-    <None Include="shaders\cubeLightingVertex.shader" />
+    <None Include="shaders\lightVertex.shader" />
+    <None Include="shaders\simpleLightingFragment.shader" />
+    <None Include="shaders\simpleLightingVertex.shader" />
+    <None Include="shaders\normalMapLightingFragment.shader" />
     <None Include="shaders\hdrFragment.shader" />
     <None Include="shaders\hdrVertex.shader" />
     <None Include="shaders\lightFragment.shader" />
     <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\pointShadowFragment.shader" />
     <None Include="shaders\pointShadowVertex.shader" />
-    <None Include="shaders\roomLightingFragment.shader" />
-    <None Include="shaders\roomLightingVertex.shader" />
+    <None Include="shaders\normalMapLightingVertex.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

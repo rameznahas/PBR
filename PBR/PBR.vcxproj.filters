@@ -64,9 +64,10 @@
     <None Include="shaders\lightFragment.shader" />
     <None Include="shaders\hdrVertex.shader" />
     <None Include="shaders\hdrFragment.shader" />
-    <None Include="shaders\roomLightingVertex.shader" />
-    <None Include="shaders\cubeLightingVertex.shader" />
-    <None Include="shaders\roomLightingFragment.shader" />
-    <None Include="shaders\cubeLightingFragment.shader" />
+    <None Include="shaders\normalMapLightingVertex.shader" />
+    <None Include="shaders\normalMapLightingFragment.shader" />
+    <None Include="shaders\simpleLightingVertex.shader" />
+    <None Include="shaders\simpleLightingFragment.shader" />
+    <None Include="shaders\lightVertex.shader" />
   </ItemGroup>
 </Project>

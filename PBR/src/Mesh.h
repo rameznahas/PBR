@@ -8,6 +8,7 @@ struct Vertex {
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 uvs;
+	glm::vec3 tangent;
 };
 
 struct Texture {
@@ -18,7 +19,7 @@ struct Texture {
 class Mesh {
 public:
 	Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs);
-	void draw(Shader shader) const;
+	void draw(const Shader& shader, GLenum startingTexSlot, std::string suffix = "") const;
 
 	std::vector<Vertex> vertices;
 	std::vector<GLuint> indices;

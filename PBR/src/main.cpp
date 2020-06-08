@@ -13,55 +13,22 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programLightingRoom("./shaders/roomLightingVertex.shader", "./shaders/roomLightingFragment.shader");
-	Shader programLightingCube("./shaders/cubeLightingVertex.shader", "./shaders/cubeLightingFragment.shader");
+	Shader programNormalMapLighting("./shaders/normalMapLightingVertex.shader", "./shaders/normalMapLightingFragment.shader");
+	Shader programSimpleLighting("./shaders/simpleLightingVertex.shader", "./shaders/simpleLightingFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
-	Shader programLight("./shaders/cubeLightingVertex.shader", "./shaders/lightFragment.shader");
 	Shader programHDR("./shaders/hdrVertex.shader", "./shaders/hdrFragment.shader");
+	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
 
-	computeTB();
+	Model backpack("./assets/models/backpack/backpack.obj", false);
+	Model lightBackpack("./assets/models/backpack/backpack.obj", true);
+	computeVertTangents(roomVertices, roomVerticesTangents);
+	computeVertTangents(cubeVertices, cubeVerticesTangents);
 
-	GLuint VAOroom, VBOroom, texRoom[NB_ROOM_TEX];
-	glGenVertexArrays(1, &VAOroom);
-	glBindVertexArray(VAOroom);
+	GLuint VAOroom, VBOroom, texRoom[TEX_PER_MAT];
+	initVertexAttributes(VAOroom, VBOroom, roomVerticesTangents, sizeof(roomVerticesTangents), texRoom, roomTexLoc, programNormalMapLighting, programSimpleLighting);
 
-	glGenBuffers(1, &VBOroom);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOroom);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(roomVerticesTB), roomVerticesTB, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
-	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(GLfloat), (void*)(11 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-	glEnableVertexAttribArray(3);
-	glEnableVertexAttribArray(4);
-
-	programLightingRoom.use();
-	texRoom[0] = loadTexture("./assets/images/brickwall/brickwall.jpg", GL_TEXTURE0);
-	programLightingRoom.set_int("diffuseMap", 0);
-	texRoom[1] = loadTexture("./assets/images/brickwall/brickwall_normal.jpg", GL_TEXTURE1);
-	programLightingRoom.set_int("normalMap", 1);
-
-	GLuint VAOcube, VBOcube, texCube;
-	glGenVertexArrays(1, &VAOcube);
-	glBindVertexArray(VAOcube);
-
-	glGenBuffers(1, &VBOcube);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOcube);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-
-	programLightingCube.use();
-	texCube = loadTexture("./assets/images/wood.png", GL_TEXTURE0);
-	programLightingCube.set_int("diffuseMap", 0);
+	GLuint VAOcube, VBOcube, texCube[TEX_PER_MAT];
+	initVertexAttributes(VAOcube, VBOcube, cubeVerticesTangents, sizeof(cubeVerticesTangents), texCube, cubeTexLoc, programNormalMapLighting, programSimpleLighting);
 
 	GLuint VAOhdr, VBOhdr;
 	glGenVertexArrays(1, &VAOhdr);
@@ -84,7 +51,7 @@ int main() {
 
 	glGenBuffers(1, &UBOlighting);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
-	glBufferData(GL_UNIFORM_BUFFER, 31 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, 46 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, UBOlighting);
 
 	unsigned int lightingOffset = 0;
@@ -107,7 +74,6 @@ int main() {
 		lightingOffset += sizeof(glm::vec4);
 	}
 	glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset + sizeof(glm::vec3), sizeof(GLfloat), &farPlane);
-
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	GLuint FBOpointShadow, texPointShadow[NB_POINT_LIGHTS];
@@ -118,14 +84,16 @@ int main() {
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-		glActiveTexture(GL_TEXTURE2 + i);
+		glActiveTexture(GL_TEXTURE3 + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
-		programLightingCube.use();
-		programLightingCube.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 2 + i);
-		programLightingRoom.use();
-		programLightingRoom.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), 2 + i);
+
+		programNormalMapLighting.use();
+		programNormalMapLighting.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
+		programSimpleLighting.use();
+		programSimpleLighting.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
+
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 		}
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -178,14 +146,14 @@ int main() {
 		}
 	}
 	
-	P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 1000.0f);
+	P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
 
 	programPointShadow.use();
 	programPointShadow.set_float("farPlane", farPlane);
 
-	M[0] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
-	M[0] = glm::scale(M[0], glm::vec3(15.0f));
-	normalMatrix[0] = glm::transpose(glm::inverse(glm::mat3(M[0])));
+	M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
+	M[1] = glm::scale(M[1], glm::vec3(7.5f));
+	normalMatrix[1] = glm::transpose(glm::inverse(glm::mat3(M[1])));
 
 	M[2] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
 	M[2] = glm::scale(M[2], glm::vec3(0.1f));
@@ -203,18 +171,23 @@ int main() {
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
 
-		M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -9.0f));
-		M[1] = glm::rotate(M[1], angle, glm::vec3(1.0f));
-		normalMatrix[1] = glm::transpose(glm::inverse(glm::mat3(M[1])));
+		M[0] = glm::translate(glm::mat4(1.0f), glm::vec3(5.0f, -5.0f, 5.0f));
+		M[0] = glm::rotate(M[0], angle, WORLD_UP);
+		M[0] = glm::scale(M[0], glm::vec3(0.5f));
+		normalMatrix[0] = glm::transpose(glm::inverse(glm::mat3(M[0])));
+
+		M[3] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
+		M[3] = glm::rotate(M[3], angle, glm::vec3(1.0f));
+		normalMatrix[3] = glm::transpose(glm::inverse(glm::mat3(M[3])));
 
 		float time = (float)glfwGetTime();
-		M[3] = glm::translate(glm::mat4(1.0f), 2.0f * glm::vec3(sin(time), 0.0f, cos(time)));
-		M[3] = glm::scale(M[3], glm::vec3(0.2f));
-		normalMatrix[3] = glm::transpose(glm::inverse(glm::mat3(M[3])));
+		M[4] = glm::translate(glm::mat4(1.0f), 2.5f * glm::vec3(sin(time), 0.0f, cos(time)));
+		M[4] = glm::scale(M[4], glm::vec3(0.2f));
+		normalMatrix[4] = glm::transpose(glm::inverse(glm::mat3(M[4])));
 
 		angle += (float)glm::radians(15.0f * delta_time);
 		
-		shadowPass(programPointShadow, FBOpointShadow, texPointShadow, VAOcube);
+		shadowPass(programPointShadow, FBOpointShadow, texPointShadow, lightBackpack, VAOroom, VAOcube);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
 		glViewport(0, 0, window.width, window.height);
@@ -229,39 +202,28 @@ int main() {
 		}
 
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(GL_TEXTURE2 + i);
+			glActiveTexture(GL_TEXTURE3 + i);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 		}
 
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
+
+		Shader* currentProgram = normalMapping ? &programNormalMapLighting : &programSimpleLighting;
+		currentProgram->use();
+		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
+		backpack.draw(*currentProgram, GL_TEXTURE0, "Map");
 		
 		glBindVertexArray(VAOroom);
-		if (normalMapping) programLightingRoom.use();
-		else programLightingCube.use();
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texRoom[0]);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texRoom[1]);
-
-		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[0]);
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[0]);
-		for (unsigned int i = 0; i < 3; ++i) {
-			glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[0][i]);
-		}
+		bindSimpleModelTexs(texRoom);
+		initUBOtransform(M[1], MVP[1], normalMatrix[1]);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		glBindVertexArray(VAOcube);
-		programLightingCube.use();
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texCube);
-		for (unsigned int i = 1; i < NB_MODELS; ++i) {
-			glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M[i]);
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP[i]);
-			for (unsigned int j = 0; j < 3; ++j) {
-				glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + j * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i][j]);
-			}
+		bindSimpleModelTexs(texCube);
+		for (unsigned int i = 2; i < NB_MODELS; ++i) {
+			initUBOtransform(M[i], MVP[i], normalMatrix[i]);
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
@@ -372,10 +334,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-		normalMapping = !normalMapping;
-	}
-		
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) normalMapping = !normalMapping;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -475,12 +434,11 @@ GLuint loadTexture(const char* path, GLenum tex) {
 	return texture;
 }
 
-void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, GLuint& VAOcube) {
+void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube) {
 	glBindFramebuffer(GL_FRAMEBUFFER, FBOpointShadow);
-	glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
+	glViewport(0, 0, SHADOWMAP_RES, SHADOWMAP_RES);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 	programPointShadow.use();
-	glBindVertexArray(VAOcube);
 
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		programPointShadow.set_vec3("lightPos", &pointLights[i].position[0]);
@@ -488,7 +446,19 @@ void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texP
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, texPointShadow[i], 0);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			for (unsigned int k = 0; k < NB_MODELS; ++k) {
+			MVP[0] = pointShadowLightSpaces[i][j] * M[0];
+			programPointShadow.set_mat4("MVP", &MVP[0][0][0]);
+			programPointShadow.set_mat4("M", &M[0][0][0]);
+			model.draw(programPointShadow, GL_TEXTURE0);
+
+			glBindVertexArray(VAOroom);
+			MVP[1] = pointShadowLightSpaces[i][j] * M[1];
+			programPointShadow.set_mat4("MVP", &MVP[1][0][0]);
+			programPointShadow.set_mat4("M", &M[1][0][0]);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+
+			glBindVertexArray(VAOcube);
+			for (unsigned int k = 2; k < NB_MODELS; ++k) {
 				MVP[k] = pointShadowLightSpaces[i][j] * M[k];
 				programPointShadow.set_mat4("MVP", &MVP[k][0][0]);
 				programPointShadow.set_mat4("M", &M[k][0][0]);
@@ -498,19 +468,19 @@ void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texP
 	}
 }
 
-void computeTB() {
+void computeVertTangents(float* vertices, float* to) {
 	const unsigned int NB_FACES = 6;
 	const unsigned int NB_POS = 3;
+	const unsigned int NB_EXTRA_FLOATS = 3;
 	unsigned int stride = 8;
 	unsigned int nextFaceStride = 3 * stride;
 
-	float* posPtr = roomVertices;
+	float* posPtr = vertices;
 	float* uvPtr = posPtr + 6;
 
 	glm::vec3 pos[NB_POS];
 	glm::vec2 uv[NB_POS];
-
-	glm::vec3 Ts[NB_FACES], Bs[NB_FACES];
+	glm::vec3 Ts[NB_FACES];
 
 	for (unsigned int i = 0; i < NB_FACES; ++i) {
 		for (unsigned int j = 0; j < NB_POS; ++j) {
@@ -533,7 +503,6 @@ void computeTB() {
 		E[2] = glm::vec2(E1[2], E2[2]);
 
 		Ts[i] = detInverse * glm::vec2(UV2[1], -UV1[1]) * E;
-		Bs[i] = detInverse * glm::vec2(-UV2[0], UV1[0]) * E;
 
 		posPtr += nextFaceStride;
 		uvPtr += nextFaceStride;
@@ -544,19 +513,61 @@ void computeTB() {
 	unsigned int end = start + stride;
 
 	for (unsigned int i = 0; i < NB_VERTICES; ++i) {
-		unsigned int offset = i * 6;
+		unsigned int offset = i * NB_EXTRA_FLOATS;
 		for (unsigned int j = start; j < end; ++j) {
-			roomVerticesTB[j + offset] = roomVertices[j];
+			to[j + offset] = vertices[j];
 		}
 		start = end;
 		end = start + stride;
 
 		unsigned int idx = i / NB_FACES;
-		roomVerticesTB[start + offset + 0] = Ts[idx][0];
-		roomVerticesTB[start + offset + 1] = Ts[idx][1];
-		roomVerticesTB[start + offset + 2] = Ts[idx][2];
-		roomVerticesTB[start + offset + 3] = Bs[idx][0];
-		roomVerticesTB[start + offset + 4] = Bs[idx][1];
-		roomVerticesTB[start + offset + 5] = Bs[idx][2];
+		for (unsigned int j = 0; j < NB_EXTRA_FLOATS; ++j) {
+			to[start + offset + j] = Ts[idx][j];
+		}
 	}
+}
+
+void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix) {
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
+	for (unsigned int i = 0; i < 3; ++i) {
+		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i]);
+	}
+}
+
+void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint* texs, const char** tex_locations, Shader& normalMapProgram, Shader& simpleProgram) {
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
+
+	normalMapProgram.use();
+	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
+		texs[i] = loadTexture(tex_locations[i], GL_TEXTURE0 + i);
+		normalMapProgram.set_int(texUniform[i], i);
+	}
+
+	simpleProgram.use();
+	for (unsigned int i = 0; i < TEX_PER_MAT - 1; ++i) {
+		simpleProgram.set_int(texUniform[i], i);
+	}
+}
+
+void bindSimpleModelTexs(GLuint* tex) {
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex[0]);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, tex[1]);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, tex[2]);
 }
