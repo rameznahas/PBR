@@ -160,7 +160,7 @@ int samples = 3;
 const char* texUniform[TEX_PER_MAT] = {
 	"material1.diffuseMap",
 	"material1.specularMap",
-	"material1.normalMap",
+	"material1.normalMap"
 };
 
 const char* roomTexLoc[TEX_PER_MAT] = {

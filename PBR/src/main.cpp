@@ -83,8 +83,9 @@ int main() {
 	glReadBuffer(GL_NONE);
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
+	unsigned int base = GL_TEXTURE0 + TEX_PER_MAT;
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-		glActiveTexture(GL_TEXTURE3 + i);
+		glActiveTexture(base + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 
 		programNormalMapLighting.use();
@@ -202,7 +203,7 @@ int main() {
 		}
 
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(GL_TEXTURE3 + i);
+			glActiveTexture(base + i);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 		}
 
@@ -564,10 +565,8 @@ void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, 
 }
 
 void bindSimpleModelTexs(GLuint* tex) {
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex[0]);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, tex[1]);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, tex[2]);
+	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
+		glActiveTexture(GL_TEXTURE0 + i);
+		glBindTexture(GL_TEXTURE_2D, tex[i]);
+	}
 }
