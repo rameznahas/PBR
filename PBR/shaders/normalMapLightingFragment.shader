@@ -59,7 +59,7 @@ void main() {
 	color = vec4(0.0f);
 
 	vec3 worldFragToView = worldViewPos - fsIn.worldPos;
-	vec3 tangentFragToView = fsIn.tangentViewPos - fsIn.tangentPos;
+	vec3 viewDir = normalize(fsIn.tangentViewPos - fsIn.tangentPos);
 
 	vec3 diff = texture(material1.diffuseMap, fsIn.uv).rgb;
 	float spec = texture(material1.specularMap, fsIn.uv).r;
@@ -77,7 +77,6 @@ void main() {
 		float diffAngle = max(dot(lightDir, normal), 0.0f);
 		vec3 diffuse = light.color * diffAngle * diff;
 
-		vec3 viewDir = normalize(tangentFragToView);
 		vec3 halfwayDir = normalize(lightDir + viewDir);
 		float specAngle = pow(max(dot(halfwayDir, normal), 0.0f), 32.0f);
 		vec3 specular = light.color * specAngle * spec;
