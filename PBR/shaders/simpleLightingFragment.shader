@@ -38,7 +38,8 @@ layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned of
 uniform Material material1;
 uniform samplerCube pointShadow[NB_POINT_LIGHTS];
 
-out vec4 color;
+layout (location = 0) out vec4 color;
+layout (location = 1) out vec4 bloomColor;
 
 // array of offset direction for sampling
 vec3 gridSamplingDisk[NB_SAMPLES] = {
@@ -75,6 +76,9 @@ void main() {
 		vec3 specular = light.color * specAngle * spec;
 		color += vec4((ambient + (diffuse + specular) * shadow(fragToView, i)) * attenuation(light, fragToLight), 1.0f);
 	}
+
+	float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
+	bloomColor = brightness > 2.5f ? color : vec4(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 float attenuation(Light light, vec3 fragToLight) {

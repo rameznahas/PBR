@@ -16,8 +16,9 @@ int main() {
 	Shader programNormalMapLighting("./shaders/normalMapLightingVertex.shader", "./shaders/normalMapLightingFragment.shader");
 	Shader programSimpleLighting("./shaders/simpleLightingVertex.shader", "./shaders/simpleLightingFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
-	Shader programHDR("./shaders/hdrVertex.shader", "./shaders/hdrFragment.shader");
 	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
+	Shader programToneMapping("./shaders/toneMappingVertex.shader", "./shaders/toneMappingFragment.shader");
+	Shader programBloom("./shaders/toneMappingVertex.shader", "./shaders/bloomFragment.shader");
 
 	Model backpack("./assets/models/backpack/backpack.obj", false);
 	Model lightBackpack("./assets/models/backpack/backpack.obj", true);
@@ -30,12 +31,12 @@ int main() {
 	GLuint VAOcube, VBOcube, texCube[TEX_PER_MAT];
 	initVertexAttributes(VAOcube, VBOcube, cubeVerticesTangents, sizeof(cubeVerticesTangents), texCube, cubeTexLoc, programNormalMapLighting, programSimpleLighting);
 
-	GLuint VAOhdr, VBOhdr;
-	glGenVertexArrays(1, &VAOhdr);
-	glBindVertexArray(VAOhdr);
+	GLuint VAOtoneMapping, VBOtoneMapping;
+	glGenVertexArrays(1, &VAOtoneMapping);
+	glBindVertexArray(VAOtoneMapping);
 
-	glGenBuffers(1, &VBOhdr);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOhdr);
+	glGenBuffers(1, &VBOtoneMapping);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOtoneMapping);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
@@ -109,28 +110,40 @@ int main() {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	GLuint FBOhdr, texHDR, RBOhdr;
+	GLuint FBOhdr, texHDR[NB_HDR_TEX], RBOhdr;
 	glGenFramebuffers(1, &FBOhdr);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	GLuint drawBuffs[NB_HDR_TEX] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(NB_HDR_TEX, drawBuffs);
 
-	glGenTextures(1, &texHDR);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texHDR);
-	programHDR.use();
-	programHDR.set_int("hdrTex", 0);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glGenTextures(NB_HDR_TEX, texHDR);
+	programToneMapping.use();
+	const char* samplers[NB_HDR_TEX] = { "hdrTex", "bloom" };
+	for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
+		glActiveTexture(GL_TEXTURE0 + i);
+		glBindTexture(GL_TEXTURE_2D, texHDR[i]);
+		programToneMapping.set_int(samplers[i], i);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texHDR[i], 0);
+	}
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	glGenRenderbuffers(1, &RBOhdr);
 	glBindRenderbuffer(GL_RENDERBUFFER, RBOhdr);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, window.width, window.height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texHDR, 0);
+	
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBOhdr);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
+
+	GLuint FBObloom;
+	glGenFramebuffers(1, &FBObloom);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texHDR[1], 0);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
@@ -162,7 +175,7 @@ int main() {
 
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		Mlight[i] = glm::translate(glm::mat4(1.0f), pointLights[i].position);
-		Mlight[i] = glm::scale(Mlight[i], glm::vec3(0.2f));
+		Mlight[i] = glm::scale(Mlight[i], glm::vec3(0.1f));
 	}
 
 	float angle = glm::radians(60.0f);
@@ -190,6 +203,9 @@ int main() {
 		
 		shadowPass(programPointShadow, FBOpointShadow, texPointShadow, lightBackpack, VAOroom, VAOcube);
 
+		Shader* currentProgram = normalMapping ? &programNormalMapLighting : &programSimpleLighting;
+		currentProgram->use();
+
 		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
 		glViewport(0, 0, window.width, window.height);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -211,8 +227,6 @@ int main() {
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
-		Shader* currentProgram = normalMapping ? &programNormalMapLighting : &programSimpleLighting;
-		currentProgram->use();
 		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
 		backpack.draw(*currentProgram, GL_TEXTURE0, "Map");
 		
@@ -236,14 +250,31 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
+		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
+		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+
+		programBloom.use();
+		glBindVertexArray(VAOtoneMapping);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texHDR[1]);
+		programBloom.set_int("bloom", 0);
+		bool horizontal = true;
+		for (unsigned int i = 0; i < 10; ++i) {
+			programBloom.set_int("horizontal", horizontal);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			horizontal != horizontal;
+		}
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glBindVertexArray(VAOhdr);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texHDR);
-		programHDR.use();
+		programToneMapping.use();
+		for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
+			glActiveTexture(GL_TEXTURE0 + i);
+			glBindTexture(GL_TEXTURE_2D, texHDR[i]);
+		}
+		
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		// swap color buffer

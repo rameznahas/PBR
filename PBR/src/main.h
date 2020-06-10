@@ -9,10 +9,12 @@
 //#define FULLSCREEN
 #define SCREEN_GRAB
 
-#define CAM_SPEED 3.0f
+#define CAM_SPEED 1.5f
 #define NB_POINT_LIGHTS 9
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 5
+#define NB_HDR_TEX 2
+#define NB_BLOOM_PASSES 2
 #define TEX_PER_MAT 3
 #define SHADOWMAP_RES 2048
 #define ENVMAP_RES 2048
@@ -90,57 +92,57 @@ float farPlane = 50.0f;
 Point_Light pointLights[NB_POINT_LIGHTS] = {
 	Point_Light(
 		glm::vec3(5.0f, -5.0f, 2.5f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 3.0f, 0.0f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, -6.5f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(-6.5f, 6.5f, 0.0f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 2.0f, -3.25f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, 0.0f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(-6.5f, 6.5f, 6.5f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 6.5f, 6.5f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, 6.5f),
-		glm::vec3(1.0f),
+		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.045f, 0.0075f
+		1.0f, 0.22f, 0.20f
 	)
 };
 
@@ -180,12 +182,12 @@ GLfloat cubeVerticesTangents[396];
 GLfloat cubeVertices[] = {
 	// positions				 // normals					// uvs
 	// back face
-	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
-	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
+	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
+	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
+	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
+	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
 	// front face				 	    
 	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
 	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 0.0f,

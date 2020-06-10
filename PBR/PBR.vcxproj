@@ -148,12 +148,13 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
     <ClInclude Include="src\Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\bloomFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\simpleLightingFragment.shader" />
     <None Include="shaders\simpleLightingVertex.shader" />
     <None Include="shaders\normalMapLightingFragment.shader" />
-    <None Include="shaders\hdrFragment.shader" />
-    <None Include="shaders\hdrVertex.shader" />
+    <None Include="shaders\toneMappingFragment.shader" />
+    <None Include="shaders\toneMappingVertex.shader" />
     <None Include="shaders\lightFragment.shader" />
     <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\pointShadowFragment.shader" />

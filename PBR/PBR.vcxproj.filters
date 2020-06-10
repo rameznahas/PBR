@@ -62,12 +62,13 @@
     <None Include="shaders\pointShadowVertex.shader" />
     <None Include="shaders\pointShadowFragment.shader" />
     <None Include="shaders\lightFragment.shader" />
-    <None Include="shaders\hdrVertex.shader" />
-    <None Include="shaders\hdrFragment.shader" />
     <None Include="shaders\normalMapLightingVertex.shader" />
     <None Include="shaders\normalMapLightingFragment.shader" />
     <None Include="shaders\simpleLightingVertex.shader" />
     <None Include="shaders\simpleLightingFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
+    <None Include="shaders\bloomFragment.shader" />
+    <None Include="shaders\toneMappingVertex.shader" />
+    <None Include="shaders\toneMappingFragment.shader" />
   </ItemGroup>
 </Project>
