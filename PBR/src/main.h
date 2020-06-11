@@ -27,8 +27,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
-void poll_mouse(Model& model);
 GLuint load_cubemap(std::vector<std::string>& paths);
 GLuint loadTexture(const char* path, GLenum tex);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube);
