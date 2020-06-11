@@ -13,36 +13,40 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programNormalMapLighting("./shaders/normalMapLightingVertex.shader", "./shaders/normalMapLightingFragment.shader");
-	Shader programSimpleLighting("./shaders/simpleLightingVertex.shader", "./shaders/simpleLightingFragment.shader");
+	Shader programGeometryPass("./shaders/geometryPassVertex.shader", "./shaders/geometryPassFragment.shader");
+	Shader programLightingPass("./shaders/lightingPassVertex.shader", "./shaders/lightingPassFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
 	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
-	Shader programToneMapping("./shaders/toneMappingVertex.shader", "./shaders/toneMappingFragment.shader");
 	Shader programBloom("./shaders/toneMappingVertex.shader", "./shaders/bloomFragment.shader");
+	Shader programToneMapping("./shaders/toneMappingVertex.shader", "./shaders/toneMappingFragment.shader");
+	Shader programSkybox("./shaders/skyboxVertex.shader", "./shaders/skyboxFragment.shader");
 
 	Model backpack("./assets/models/backpack/backpack.obj", false);
 	Model lightBackpack("./assets/models/backpack/backpack.obj", true);
-	computeVertTangents(roomVertices, roomVerticesTangents);
-	computeVertTangents(cubeVertices, cubeVerticesTangents);
 
-	GLuint VAOroom, VBOroom, texRoom[TEX_PER_MAT];
-	initVertexAttributes(VAOroom, VBOroom, roomVerticesTangents, sizeof(roomVerticesTangents), texRoom, roomTexLoc, programNormalMapLighting, programSimpleLighting);
+	GLuint VAOroom, VBOroom, texRoom[TEX_PER_MAT]; 
+	GLuint attribSizes[4] = { 3, 3, 2, 3 };
+	computeVertTangents(roomVertices, roomVerticesTangents);
+	initVertexAttributes(VAOroom, VBOroom, roomVerticesTangents, sizeof(roomVerticesTangents), 4, 11 * sizeof(GLfloat), attribSizes);
+	initTextures(programGeometryPass, texRoom, roomTexLoc);
 
 	GLuint VAOcube, VBOcube, texCube[TEX_PER_MAT];
-	initVertexAttributes(VAOcube, VBOcube, cubeVerticesTangents, sizeof(cubeVerticesTangents), texCube, cubeTexLoc, programNormalMapLighting, programSimpleLighting);
+	computeVertTangents(cubeVertices, cubeVerticesTangents);
+	initVertexAttributes(VAOcube, VBOcube, cubeVerticesTangents, sizeof(cubeVerticesTangents), 4, 11 * sizeof(GLfloat), attribSizes);
+	initTextures(programGeometryPass, texCube, cubeTexLoc);
 
-	GLuint VAOtoneMapping, VBOtoneMapping;
-	glGenVertexArrays(1, &VAOtoneMapping);
-	glBindVertexArray(VAOtoneMapping);
+	GLuint VAOquad, VBOquad;
+	GLuint quadAttribSizes[2] = { 2, 2 };
+	initVertexAttributes(VAOquad, VBOquad, quadVertices, sizeof(quadVertices), 2, 4 * sizeof(GLfloat), quadAttribSizes);
 
-	glGenBuffers(1, &VBOtoneMapping);
-	glBindBuffer(GL_ARRAY_BUFFER, VBOtoneMapping);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glBindVertexArray(0);
+	GLuint VAOskbyox, VBOskybox, texSkybox;
+	GLuint skyboxAttribSize = 3;
+	initVertexAttributes(VAOskbyox, VBOskybox, skyboxVertices, sizeof(skyboxVertices), 1, 3 * sizeof(GLfloat), &skyboxAttribSize);
+	texSkybox = load_cubemap(cubeMap);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
+	programSkybox.use();
+	programSkybox.set_int("skybox", 0);
 
 	GLuint UBOtransforms, UBOlighting;
 	glGenBuffers(1, &UBOtransforms);
@@ -89,10 +93,8 @@ int main() {
 		glActiveTexture(base + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 
-		programNormalMapLighting.use();
-		programNormalMapLighting.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
-		programSimpleLighting.use();
-		programSimpleLighting.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
+		programLightingPass.use();
+		programLightingPass.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
 
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
@@ -144,6 +146,44 @@ int main() {
 	glGenFramebuffers(1, &FBObloom);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texHDR[1], 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
+
+	GLuint gBuffer, gPosition, gNormal, gColorSpec, gRBO;
+	glGenFramebuffers(1, &gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
+
+	glGenTextures(1, &gPosition);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &gNormal);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &gColorSpec);
+	glBindTexture(GL_TEXTURE_2D, gColorSpec);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, window.width, window.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenRenderbuffers(1, &gRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, gRBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, window.width, window.height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gRBO);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
@@ -200,36 +240,28 @@ int main() {
 		normalMatrix[4] = glm::transpose(glm::inverse(glm::mat3(M[4])));
 
 		angle += (float)glm::radians(15.0f * delta_time);
-		
+
 		shadowPass(programPointShadow, FBOpointShadow, texPointShadow, lightBackpack, VAOroom, VAOcube);
-
-		Shader* currentProgram = normalMapping ? &programNormalMapLighting : &programSimpleLighting;
-		currentProgram->use();
-
-		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
-		glViewport(0, 0, window.width, window.height);
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		V = camera.get_view_matrix();
 		VP = P * V;
-
 		for (unsigned int i = 0; i < NB_MODELS; ++i) {
 			MVP[i] = VP * M[i];
 		}
 
-		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(base + i);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
-		}
-
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+		glViewport(0, 0, window.width, window.height);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		programGeometryPass.use();
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
 		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
-		backpack.draw(*currentProgram, GL_TEXTURE0, "Map");
-		
+		backpack.draw(programGeometryPass, GL_TEXTURE0, "Map");
+
 		glBindVertexArray(VAOroom);
 		bindSimpleModelTexs(texRoom);
 		initUBOtransform(M[1], MVP[1], normalMatrix[1]);
@@ -242,7 +274,35 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
+		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
+		glViewport(0, 0, window.width, window.height);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		programLightingPass.use();
+
+		glBindVertexArray(VAOquad);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gPosition);
+		programLightingPass.set_int("worldPositions", 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gNormal);
+		programLightingPass.set_int("worldNorms", 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gColorSpec);
+		programLightingPass.set_int("colorSpecs", 2);
+		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+			glActiveTexture(base + i);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
+		}
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOhdr);
+		glBlitFramebuffer(0, 0, window.width, window.height, 0, 0, window.width, window.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
 		programLight.use();
+		glBindVertexArray(VAOcube);
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 			programLight.set_vec3("lightColor", &pointLights[i].color[0]);
 			MVPlight[i] = VP * Mlight[i];
@@ -250,11 +310,22 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
+		/*programSkybox.use();
+		glBindVertexArray(VAOskbyox);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
+		V = glm::mat4(glm::mat3(V));
+		VP = P * V;
+		programSkybox.set_mat4("VP", &VP[0][0]);
+		glDepthFunc(GL_LEQUAL);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDepthFunc(GL_LESS);*/
+
 		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 		programBloom.use();
-		glBindVertexArray(VAOtoneMapping);
+		glBindVertexArray(VAOquad);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texHDR[1]);
 		programBloom.set_int("bloom", 0);
@@ -266,7 +337,8 @@ int main() {
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		glViewport(0, 0, window.width, window.height);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		programToneMapping.use();
@@ -274,8 +346,22 @@ int main() {
 			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, texHDR[i]);
 		}
-		
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, FBOhdr);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(0, 0, window.width, window.height, 0, 0, window.width, window.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+		programSkybox.use();
+		glBindVertexArray(VAOskbyox);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
+		V = glm::mat4(glm::mat3(V));
+		VP = P * V;
+		programSkybox.set_mat4("VP", &VP[0][0]);
+		glDepthFunc(GL_LEQUAL);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDepthFunc(GL_LESS);
 
 		// swap color buffer
 		glfwSwapBuffers(window());
@@ -342,6 +428,7 @@ bool init() {
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_CULL_FACE);
 
 	return true;
 }
@@ -406,6 +493,7 @@ GLuint load_cubemap(std::vector<std::string>& paths) {
 	glGenTextures(1, &cubemap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
 
+	stbi_set_flip_vertically_on_load(false);
 	int width, height, channels;
 	for (unsigned int i = 0; i < paths.size(); ++i) {
 		unsigned char* data = stbi_load(paths[i].c_str(), &width, &height, &channels, 0);
@@ -567,31 +655,29 @@ void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix) {
 	}
 }
 
-void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint* texs, const char** tex_locations, Shader& normalMapProgram, Shader& simpleProgram) {
+void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes) {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-	glEnableVertexAttribArray(3);
 
-	normalMapProgram.use();
-	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
-		texs[i] = loadTexture(tex_locations[i], GL_TEXTURE0 + i);
-		normalMapProgram.set_int(texUniform[i], i);
+	unsigned int offset = 0;
+	for (unsigned int i = 0; i < nb_attrib; ++i) {
+		glVertexAttribPointer(i, attribSizes[i], GL_FLOAT, GL_FALSE, stride, (void*)(offset * sizeof(GLfloat)));
+		glEnableVertexAttribArray(i);
+		offset += attribSizes[i];
 	}
 
-	simpleProgram.use();
-	for (unsigned int i = 0; i < TEX_PER_MAT - 1; ++i) {
-		simpleProgram.set_int(texUniform[i], i);
+	glBindVertexArray(0);
+}
+
+void initTextures(Shader& program, GLuint* texs, const char** tex_locations) {
+	program.use();
+	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
+		texs[i] = loadTexture(tex_locations[i], GL_TEXTURE0 + i);
+		program.set_int(texUniform[i], i);
 	}
 }
 

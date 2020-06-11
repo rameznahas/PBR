@@ -62,13 +62,15 @@
     <None Include="shaders\pointShadowVertex.shader" />
     <None Include="shaders\pointShadowFragment.shader" />
     <None Include="shaders\lightFragment.shader" />
-    <None Include="shaders\normalMapLightingVertex.shader" />
-    <None Include="shaders\normalMapLightingFragment.shader" />
-    <None Include="shaders\simpleLightingVertex.shader" />
-    <None Include="shaders\simpleLightingFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\bloomFragment.shader" />
     <None Include="shaders\toneMappingVertex.shader" />
     <None Include="shaders\toneMappingFragment.shader" />
+    <None Include="shaders\geometryPassVertex.shader" />
+    <None Include="shaders\geometryPassFragment.shader" />
+    <None Include="shaders\lightingPassVertex.shader" />
+    <None Include="shaders\lightingPassFragment.shader" />
+    <None Include="shaders\skyboxVertex.shader" />
+    <None Include="shaders\skyboxFragment.shader" />
   </ItemGroup>
 </Project>

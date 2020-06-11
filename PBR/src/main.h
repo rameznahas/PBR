@@ -7,7 +7,7 @@
 #include "Model.h"
 
 //#define FULLSCREEN
-#define SCREEN_GRAB
+//#define SCREEN_GRAB
 
 #define CAM_SPEED 1.5f
 #define NB_POINT_LIGHTS 9
@@ -34,7 +34,8 @@ GLuint loadTexture(const char* path, GLenum tex);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube);
 void computeVertTangents(float* vertices, float* to);
 void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix);
-void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint* texs, const char** tex_locations, Shader& normalMapProgram, Shader& simpleProgram);
+void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
+void initTextures(Shader& program, GLuint* texs, const char** tex_locations);
 void bindSimpleModelTexs(GLuint* tex);
 
 Window window;
@@ -177,6 +178,15 @@ const char* cubeTexLoc[TEX_PER_MAT] = {
 	"./assets/textures/concrete/concrete_nor_2k.png"
 };
 
+std::vector<std::string> cubeMap = {
+	"./assets/skybox/right.png",
+	"./assets/skybox/left.png",
+	"./assets/skybox/top.png",
+	"./assets/skybox/bottom.png",
+	"./assets/skybox/front.png",
+	"./assets/skybox/back.png",
+};
+
 GLfloat cubeVerticesTangents[396];
 // positions // normals // uvs // tangents
 GLfloat cubeVertices[] = {
@@ -272,6 +282,51 @@ GLfloat roomVertices[] = {
 	 1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
 	-1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 1.0f,
 	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f
+};
+
+GLfloat skyboxVertices[] = {
+	// positions		
+	-1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f, -1.0f, -1.0f,
+	// front face	
+	 1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f,
+	// left face	
+	-1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+	// right face
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	// bottom face
+	-1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f,  1.0f,
+	// top face
+	-1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f, -1.0f
 };
 
 GLfloat quadVertices[] = {
