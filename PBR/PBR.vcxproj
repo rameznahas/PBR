@@ -149,10 +149,8 @@ copy "$(ProjectDir)Dependencies\bin\assimp-vc141-mtd.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\bloomFragment.shader" />
-    <None Include="shaders\geometryPassFragment.shader" />
-    <None Include="shaders\geometryPassVertex.shader" />
-    <None Include="shaders\lightingPassFragment.shader" />
-    <None Include="shaders\lightingPassVertex.shader" />
+    <None Include="shaders\lightingFragment.shader" />
+    <None Include="shaders\lightingVertex.shader" />
     <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\skyboxFragment.shader" />
     <None Include="shaders\skyboxVertex.shader" />

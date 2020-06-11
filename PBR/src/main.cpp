@@ -13,8 +13,7 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programGeometryPass("./shaders/geometryPassVertex.shader", "./shaders/geometryPassFragment.shader");
-	Shader programLightingPass("./shaders/lightingPassVertex.shader", "./shaders/lightingPassFragment.shader");
+	Shader programLighting("./shaders/lightingVertex.shader", "./shaders/lightingFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
 	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
 	Shader programBloom("./shaders/toneMappingVertex.shader", "./shaders/bloomFragment.shader");
@@ -28,12 +27,12 @@ int main() {
 	GLuint attribSizes[4] = { 3, 3, 2, 3 };
 	computeVertTangents(roomVertices, roomVerticesTangents);
 	initVertexAttributes(VAOroom, VBOroom, roomVerticesTangents, sizeof(roomVerticesTangents), 4, 11 * sizeof(GLfloat), attribSizes);
-	initTextures(programGeometryPass, texRoom, roomTexLoc);
+	initTextures(programLighting, texRoom, roomTexLoc);
 
 	GLuint VAOcube, VBOcube, texCube[TEX_PER_MAT];
 	computeVertTangents(cubeVertices, cubeVerticesTangents);
 	initVertexAttributes(VAOcube, VBOcube, cubeVerticesTangents, sizeof(cubeVerticesTangents), 4, 11 * sizeof(GLfloat), attribSizes);
-	initTextures(programGeometryPass, texCube, cubeTexLoc);
+	initTextures(programLighting, texCube, cubeTexLoc);
 
 	GLuint VAOquad, VBOquad;
 	GLuint quadAttribSizes[2] = { 2, 2 };
@@ -43,8 +42,6 @@ int main() {
 	GLuint skyboxAttribSize = 3;
 	initVertexAttributes(VAOskbyox, VBOskybox, skyboxVertices, sizeof(skyboxVertices), 1, 3 * sizeof(GLfloat), &skyboxAttribSize);
 	texSkybox = load_cubemap(cubeMap);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
 	programSkybox.use();
 	programSkybox.set_int("skybox", 0);
 
@@ -89,12 +86,10 @@ int main() {
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
 	unsigned int base = GL_TEXTURE0 + TEX_PER_MAT;
+	programLighting.use();
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-		glActiveTexture(base + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
-
-		programLightingPass.use();
-		programLightingPass.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
+		programLighting.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
 
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
@@ -122,7 +117,6 @@ int main() {
 	programToneMapping.use();
 	const char* samplers[NB_HDR_TEX] = { "hdrTex", "bloom" };
 	for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
-		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, texHDR[i]);
 		programToneMapping.set_int(samplers[i], i);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
@@ -149,44 +143,6 @@ int main() {
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
-
-	GLuint gBuffer, gPosition, gNormal, gColorSpec, gRBO;
-	glGenFramebuffers(1, &gBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-	glDrawBuffers(3, attachments);
-
-	glGenTextures(1, &gPosition);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glGenTextures(1, &gNormal);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glGenTextures(1, &gColorSpec);
-	glBindTexture(GL_TEXTURE_2D, gColorSpec);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, window.width, window.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glGenRenderbuffers(1, &gRBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, gRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, window.width, window.height);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gColorSpec, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gRBO);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
-	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	double last_frame = 0.0f;
@@ -204,6 +160,8 @@ int main() {
 
 	programPointShadow.use();
 	programPointShadow.set_float("farPlane", farPlane);
+	programBloom.use();
+	programBloom.set_int("bloom", 0);
 
 	M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
 	M[1] = glm::scale(M[1], glm::vec3(7.5f));
@@ -249,18 +207,24 @@ int main() {
 			MVP[i] = VP * M[i];
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-		glViewport(0, 0, window.width, window.height);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-		programGeometryPass.use();
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
+		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+			glActiveTexture(base + i);
+			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
+		glViewport(0, 0, window.width, window.height);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		programLighting.use();
+
 		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
-		backpack.draw(programGeometryPass, GL_TEXTURE0, "Map");
+		backpack.draw(programLighting, GL_TEXTURE0, "Map");
 
 		glBindVertexArray(VAOroom);
 		bindSimpleModelTexs(texRoom);
@@ -274,52 +238,14 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
-		glViewport(0, 0, window.width, window.height);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		programLightingPass.use();
-
-		glBindVertexArray(VAOquad);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gPosition);
-		programLightingPass.set_int("worldPositions", 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, gNormal);
-		programLightingPass.set_int("worldNorms", 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gColorSpec);
-		programLightingPass.set_int("colorSpecs", 2);
-		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(base + i);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
-		}
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOhdr);
-		glBlitFramebuffer(0, 0, window.width, window.height, 0, 0, window.width, window.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
 		programLight.use();
-		glBindVertexArray(VAOcube);
+
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 			programLight.set_vec3("lightColor", &pointLights[i].color[0]);
 			MVPlight[i] = VP * Mlight[i];
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVPlight[i]);
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
-
-		/*programSkybox.use();
-		glBindVertexArray(VAOskbyox);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
-		V = glm::mat4(glm::mat3(V));
-		VP = P * V;
-		programSkybox.set_mat4("VP", &VP[0][0]);
-		glDepthFunc(GL_LEQUAL);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glDepthFunc(GL_LESS);*/
 
 		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -328,7 +254,6 @@ int main() {
 		glBindVertexArray(VAOquad);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texHDR[1]);
-		programBloom.set_int("bloom", 0);
 		bool horizontal = true;
 		for (unsigned int i = 0; i < 10; ++i) {
 			programBloom.set_int("horizontal", horizontal);
@@ -453,39 +378,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) normalMapping = !normalMapping;
-}
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-	static double x, y;
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-		glfwSetCursorPosCallback(window, nullptr);
-		glfwGetCursorPos(window, &x, &y);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		camera.look_around(x, y);
-		glfwSetCursorPos(window, ::window.center.x, ::window.center.y);
-		mouse_button_down = true;
-	}
-	else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
-		camera.look_around(x, y);
-		glfwSetCursorPosCallback(window, cursor_callback);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		mouse_button_down = false;
-	}
-}
-
-void poll_mouse(Model& model) {
-	if (mouse_button_down) {
-		double x, y;
-		glfwGetCursorPos(window(), &x, &y);
-
-		angle_x += (float)glm::radians(x - window.center.x) * 0.001f;
-		angle_y += (float)glm::radians(y - window.center.y) * 0.001f;
-
-		glm::vec3 euler_angles(angle_y, angle_x, 0.0);
-		glm::quat quat(euler_angles);
-		model.M = glm::toMat4(quat);
-	}
 }
 
 GLuint load_cubemap(std::vector<std::string>& paths) {
