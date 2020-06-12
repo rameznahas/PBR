@@ -149,7 +149,7 @@ glm::mat4 M[NB_MODELS], V, P, VP, MVP[NB_MODELS];
 glm::mat4 Mlight[NB_POINT_LIGHTS], MVPlight[NB_POINT_LIGHTS];
 glm::mat3 normalMatrix[NB_MODELS];
 
-const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
+const unsigned int nm_base_offset = 3 * sizeof(glm::mat4);
 unsigned int shadowBaseTexUnit = GL_TEXTURE3;
 
 double delta_time = 0.0;

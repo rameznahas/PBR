@@ -49,7 +49,7 @@ int main() {
 	GLuint UBOtransforms, UBOlighting;
 	glGenBuffers(1, &UBOtransforms);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
-	glBufferData(GL_UNIFORM_BUFFER, 11 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, 15 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOtransforms);
 
 	glGenBuffers(1, &UBOlighting);
@@ -250,6 +250,7 @@ int main() {
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &V[0][0]);
 
 		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
 		backpack.draw(programGeometryPass, GL_TEXTURE0, "Map");
@@ -598,7 +599,7 @@ void computeVertTangents(float* vertices, float* to) {
 
 void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix) {
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
+	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
 	for (unsigned int i = 0; i < 3; ++i) {
 		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i]);
 	}
