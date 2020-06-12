@@ -43,8 +43,6 @@ int main() {
 	GLuint skyboxAttribSize = 3;
 	initVertexAttributes(VAOskbyox, VBOskybox, skyboxVertices, sizeof(skyboxVertices), 1, 3 * sizeof(GLfloat), &skyboxAttribSize);
 	texSkybox = load_cubemap(cubeMap);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
 	programSkybox.use();
 	programSkybox.set_int("skybox", 0);
 
@@ -88,13 +86,11 @@ int main() {
 	glReadBuffer(GL_NONE);
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
-	unsigned int base = GL_TEXTURE0 + TEX_PER_MAT;
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-		glActiveTexture(base + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 
 		programLightingPass.use();
-		programLightingPass.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), TEX_PER_MAT + i);
+		programLightingPass.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), shadowBaseTexUnit - GL_TEXTURE0 + i);
 
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
@@ -122,7 +118,6 @@ int main() {
 	programToneMapping.use();
 	const char* samplers[NB_HDR_TEX] = { "hdrTex", "bloom" };
 	for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
-		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, texHDR[i]);
 		programToneMapping.set_int(samplers[i], i);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
@@ -188,9 +183,6 @@ int main() {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	double last_frame = 0.0f;
-	double current_frame;
 
 	P = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, farPlane);
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
@@ -292,7 +284,7 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, gColorSpec);
 		programLightingPass.set_int("colorSpecs", 2);
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(base + i);
+			glActiveTexture(shadowBaseTexUnit + i);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 		}
 		glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -309,17 +301,6 @@ int main() {
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVPlight[i]);
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
-
-		/*programSkybox.use();
-		glBindVertexArray(VAOskbyox);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, texSkybox);
-		V = glm::mat4(glm::mat3(V));
-		VP = P * V;
-		programSkybox.set_mat4("VP", &VP[0][0]);
-		glDepthFunc(GL_LEQUAL);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glDepthFunc(GL_LESS);*/
 
 		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -453,39 +434,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) normalMapping = !normalMapping;
-}
-
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-	static double x, y;
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-		glfwSetCursorPosCallback(window, nullptr);
-		glfwGetCursorPos(window, &x, &y);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		camera.look_around(x, y);
-		glfwSetCursorPos(window, ::window.center.x, ::window.center.y);
-		mouse_button_down = true;
-	}
-	else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
-		camera.look_around(x, y);
-		glfwSetCursorPosCallback(window, cursor_callback);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		mouse_button_down = false;
-	}
-}
-
-void poll_mouse(Model& model) {
-	if (mouse_button_down) {
-		double x, y;
-		glfwGetCursorPos(window(), &x, &y);
-
-		angle_x += (float)glm::radians(x - window.center.x) * 0.001f;
-		angle_y += (float)glm::radians(y - window.center.y) * 0.001f;
-
-		glm::vec3 euler_angles(angle_y, angle_x, 0.0);
-		glm::quat quat(euler_angles);
-		model.M = glm::toMat4(quat);
-	}
 }
 
 GLuint load_cubemap(std::vector<std::string>& paths) {
@@ -518,6 +466,7 @@ GLuint load_cubemap(std::vector<std::string>& paths) {
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
 	return cubemap;
 }
@@ -686,4 +635,8 @@ void bindSimpleModelTexs(GLuint* tex) {
 		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, tex[i]);
 	}
+}
+
+void initSSAOKernel() {
+
 }

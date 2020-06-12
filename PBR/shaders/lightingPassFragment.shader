@@ -47,7 +47,7 @@ vec3 gridSamplingDisk[NB_SAMPLES] = {
 };
 
 float attenuation(Light light, vec3 worldFragToLight);
-float shadow(vec3 worldFragToView, vec3 worldPos, unsigned int idx);
+float shadow(vec3 worldPos, float diskRadius, unsigned int idx);
 
 void main() {
 	color = vec4(0.0f);
@@ -58,6 +58,7 @@ void main() {
 	float spec = texture(colorSpecs, fsIn.uv).a;
 	vec3 worldFragToView = worldViewPos - worldPos;
 	vec3 viewDir = normalize(worldFragToView);
+	float diskRadius = (1.0f + (length(worldFragToView) / farPlane)) / 25.0f;
 
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		Light light = pointLight[i].light;
@@ -72,7 +73,7 @@ void main() {
 		vec3 halfwayDir = normalize(lightDir + viewDir);
 		float specAngle = pow(max(dot(halfwayDir, worldNorm), 0.0f), 32.0f);
 		vec3 specular = light.color * specAngle * spec;
-		color += vec4((ambient + (diffuse + specular) * shadow(worldFragToView, worldPos, i)) * attenuation(light, worldFragToLight), 1.0f);
+		color += vec4((ambient + (diffuse + specular) * shadow(worldPos, diskRadius, i)) * attenuation(light, worldFragToLight), 1.0f);
 	}
 
 	float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -84,11 +85,9 @@ float attenuation(Light light, vec3 worldFragToLight) {
 	return 1.0f / (light.kc + light.kl * distance + light.kq * pow(distance, 2.0f));
 }
 
-float shadow(vec3 worldFragToView, vec3 worldPos, unsigned int idx) {
+float shadow(vec3 worldPos, float diskRadius, unsigned int idx) {
 	float shadow = 0.0f;
 	float bias = 0.2f;
-	float viewDistance = length(worldFragToView);
-	float diskRadius = (1.0f + (viewDistance / farPlane)) / 25.0f;
 
 	vec3 lightToFrag = worldPos - pointLight[idx].position;
 	float currentDepth = length(lightToFrag);

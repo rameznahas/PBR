@@ -17,7 +17,6 @@
 #define NB_BLOOM_PASSES 2
 #define TEX_PER_MAT 3
 #define SHADOWMAP_RES 2048
-#define ENVMAP_RES 2048
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
 #define WORLD_FWD glm::vec3(0.0f, 0.0f, 1.0f)
@@ -27,8 +26,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
-void poll_mouse(Model& model);
 GLuint load_cubemap(std::vector<std::string>& paths);
 GLuint loadTexture(const char* path, GLenum tex);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube);
@@ -37,6 +34,7 @@ void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix);
 void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
 void initTextures(Shader& program, GLuint* texs, const char** tex_locations);
 void bindSimpleModelTexs(GLuint* tex);
+void initSSAOKernel();
 
 Window window;
 
@@ -152,13 +150,13 @@ glm::mat4 Mlight[NB_POINT_LIGHTS], MVPlight[NB_POINT_LIGHTS];
 glm::mat3 normalMatrix[NB_MODELS];
 
 const unsigned int nm_base_offset = 2 * sizeof(glm::mat4);
+unsigned int shadowBaseTexUnit = GL_TEXTURE3;
 
 double delta_time = 0.0;
-bool mouse_button_down = false;
-bool normalMapping = true;
+double last_frame = 0.0f;
+double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
-int samples = 3;
 
 const char* texUniform[TEX_PER_MAT] = {
 	"material1.diffuseMap",
