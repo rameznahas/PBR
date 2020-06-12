@@ -634,6 +634,13 @@ void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texP
 				programPointShadow.set_mat4("M", &M[k][0][0]);
 				glDrawArrays(GL_TRIANGLES, 0, 36);
 			}
+
+			for (unsigned int k = 0; k < NB_POINT_LIGHTS; ++k) {
+				MVPlight[k] = pointShadowLightSpaces[i][j] * Mlight[k];
+				programPointShadow.set_mat4("MVP", &MVPlight[k][0][0]);
+				programPointShadow.set_mat4("M", &Mlight[k][0][0]);
+				glDrawArrays(GL_TRIANGLES, 0, 36);
+			}
 		}
 	}
 }
