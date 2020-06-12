@@ -64,13 +64,17 @@
     <None Include="shaders\lightFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\bloomFragment.shader" />
-    <None Include="shaders\toneMappingVertex.shader" />
     <None Include="shaders\toneMappingFragment.shader" />
     <None Include="shaders\geometryPassVertex.shader" />
     <None Include="shaders\geometryPassFragment.shader" />
-    <None Include="shaders\lightingPassVertex.shader" />
     <None Include="shaders\lightingPassFragment.shader" />
     <None Include="shaders\skyboxVertex.shader" />
     <None Include="shaders\skyboxFragment.shader" />
+    <None Include="shaders\ssaoGeometryPassVertex.shader" />
+    <None Include="shaders\ssaoGeometryPassFragment.shader" />
+    <None Include="shaders\ssaoFragment.shader" />
+    <None Include="shaders\quadVertex.shader" />
+    <None Include="shaders\ssaoBlurFragment.shader" />
+    <None Include="shaders\ssaoLightingPassFragment.shader" />
   </ItemGroup>
 </Project>

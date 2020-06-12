@@ -1,4 +1,5 @@
 #pragma once
+#include <random>
 #include "glfw3.h"
 #include "Window.h"
 #include "Camera.h"
@@ -10,11 +11,14 @@
 //#define SCREEN_GRAB
 
 #define CAM_SPEED 1.5f
+#define NB_SSAO_SAMPLES 64
 #define NB_POINT_LIGHTS 9
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 5
 #define NB_HDR_TEX 2
 #define NB_BLOOM_PASSES 2
+#define NB_TRANSF_UNIFORMS 4
+#define SSAO_NOISE_TEX_RES 4
 #define TEX_PER_MAT 3
 #define SHADOWMAP_RES 2048
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
@@ -29,12 +33,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 GLuint load_cubemap(std::vector<std::string>& paths);
 GLuint loadTexture(const char* path, GLenum tex);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube);
+void ssaoPass(GLuint& FBOssao, GLuint& FBOssaoBlur, GLuint& VAOquad, GLuint& gPosition, GLuint& gNormal, GLuint& texNoise, GLuint& texSSAO, Shader& programSSAO, Shader& programSSAOblur);
 void computeVertTangents(float* vertices, float* to);
 void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix);
 void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
 void initTextures(Shader& program, GLuint* texs, const char** tex_locations);
 void bindSimpleModelTexs(GLuint* tex);
 void initSSAOKernel();
+void initSSAONoise();
+float lerp(float a, float b, float c);
 
 Window window;
 
@@ -149,14 +156,28 @@ glm::mat4 M[NB_MODELS], V, P, VP, MVP[NB_MODELS];
 glm::mat4 Mlight[NB_POINT_LIGHTS], MVPlight[NB_POINT_LIGHTS];
 glm::mat3 normalMatrix[NB_MODELS];
 
-const unsigned int nm_base_offset = 3 * sizeof(glm::mat4);
-unsigned int shadowBaseTexUnit = GL_TEXTURE3;
+std::size_t UBOtransformsOffsets[NB_TRANSF_UNIFORMS] = {
+	0,
+	sizeof(glm::mat4),
+	sizeof(glm::mat4) * 2,
+	sizeof(glm::mat4) * 3
+};
+
+std::vector<glm::vec3> ssaoKernel;
+std::vector<glm::vec3> ssaoNoise;
+std::uniform_real_distribution<float> randomFloat(0.0f, 1.0f);
+std::default_random_engine generator;
+
+unsigned int shadowBaseTexUnit = GL_TEXTURE4;
 
 double delta_time = 0.0;
 double last_frame = 0.0f;
 double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
+bool ssao = false;
+int ssaoPower = 10;
+float ssaoRadius = 8.0f;
 
 const char* texUniform[TEX_PER_MAT] = {
 	"material1.diffuseMap",

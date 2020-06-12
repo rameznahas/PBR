@@ -31,7 +31,9 @@ layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned of
 uniform sampler2D gPositions;
 uniform sampler2D gNormals;
 uniform sampler2D gColorSpecs;
+uniform sampler2D ssao;
 uniform samplerCube pointShadow[NB_POINT_LIGHTS];
+uniform mat4 V1;
 
 layout (location = 0) out vec4 color;
 layout (location = 1) out vec4 bloomColor;
@@ -51,10 +53,13 @@ float shadow(vec3 worldPos, float diskRadius, unsigned int idx);
 void main() {
 	color = vec4(0.0f);
 
-	vec3 worldPos = texture(gPositions, fsIn.uv).rgb;
-	vec3 worldNorm = texture(gNormals, fsIn.uv).rgb;
+	vec3 vsPos = texture(gPositions, fsIn.uv).rgb;
+	vec3 worldPos = vec3(V1 * vec4(vsPos, 1.0f));
+	vec3 vsNorm = texture(gNormals, fsIn.uv).rgb;
+	vec3 worldNorm = vec3(V1 * vec4(vsNorm, 0.0f));
 	vec3 diff = texture(gColorSpecs, fsIn.uv).rgb;
 	float spec = texture(gColorSpecs, fsIn.uv).a;
+	float ao = texture(ssao, fsIn.uv).r;
 	vec3 worldFragToView = worldViewPos - worldPos;
 	vec3 viewDir = normalize(worldFragToView);
 	float diskRadius = (1.0f + (length(worldFragToView) / farPlane)) / 25.0f;
@@ -62,7 +67,7 @@ void main() {
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 		Light light = pointLight[i].light;
 
-		vec3 ambient = light.ambient * diff;
+		vec3 ambient = light.ambient * diff * ao;
 
 		vec3 worldFragToLight = pointLight[i].position - worldPos;
 		vec3 lightDir = normalize(worldFragToLight);

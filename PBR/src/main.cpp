@@ -14,11 +14,15 @@ int main() {
 	if (!init()) return EXIT_FAILURE;
 
 	Shader programGeometryPass("./shaders/geometryPassVertex.shader", "./shaders/geometryPassFragment.shader");
-	Shader programLightingPass("./shaders/lightingPassVertex.shader", "./shaders/lightingPassFragment.shader");
+	Shader programLightingPass("./shaders/quadVertex.shader", "./shaders/lightingPassFragment.shader");
+	Shader programSSAOGeometryPass("./shaders/ssaoGeometryPassVertex.shader", "./shaders/ssaoGeometryPassFragment.shader");
+	Shader programSSAOLightingPass("./shaders/quadVertex.shader", "./shaders/ssaoLightingPassFragment.shader");
+	Shader programSSAO("./shaders/quadVertex.shader", "./shaders/ssaoFragment.shader");
+	Shader programSSAOblur("./shaders/quadVertex.shader", "./shaders/ssaoBlurFragment.shader");
 	Shader programPointShadow("./shaders/pointShadowVertex.shader", "./shaders/pointShadowFragment.shader");
 	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
-	Shader programBloom("./shaders/toneMappingVertex.shader", "./shaders/bloomFragment.shader");
-	Shader programToneMapping("./shaders/toneMappingVertex.shader", "./shaders/toneMappingFragment.shader");
+	Shader programBloom("./shaders/quadVertex.shader", "./shaders/bloomFragment.shader");
+	Shader programToneMapping("./shaders/quadVertex.shader", "./shaders/toneMappingFragment.shader");
 	Shader programSkybox("./shaders/skyboxVertex.shader", "./shaders/skyboxFragment.shader");
 
 	Model backpack("./assets/models/backpack/backpack.obj", false);
@@ -87,10 +91,15 @@ int main() {
 
 	glGenTextures(NB_POINT_LIGHTS, texPointShadow);
 	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		glActiveTexture(shadowBaseTexUnit + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
 
+		unsigned int texUnit = shadowBaseTexUnit - GL_TEXTURE0 + i;
+		std::string uniform = "pointShadow[" + std::to_string(i) + "]";
 		programLightingPass.use();
-		programLightingPass.set_int(("pointShadow[" + std::to_string(i) + "]").c_str(), shadowBaseTexUnit - GL_TEXTURE0 + i);
+		programLightingPass.set_int(uniform.c_str(), texUnit);
+		programSSAOLightingPass.use();
+		programSSAOLightingPass.set_int(uniform.c_str(), texUnit);
 
 		for (unsigned int j = 0; j < NB_CUBEMAP_FACES; ++j) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
@@ -101,7 +110,6 @@ int main() {
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
-	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texPointShadow[0], 0);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -156,6 +164,8 @@ int main() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glGenTextures(1, &gNormal);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
@@ -182,6 +192,59 @@ int main() {
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
+
+	initSSAOKernel();
+	initSSAONoise();
+
+	GLuint FBOssao, texSSAO, texNoise;
+	glGenFramebuffers(1, &FBOssao);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOssao);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	glGenTextures(1, &texSSAO);
+	glBindTexture(GL_TEXTURE_2D, texSSAO);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, window.width, window.height, 0, GL_RED, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &texNoise);
+	glBindTexture(GL_TEXTURE_2D, texNoise);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SSAO_NOISE_TEX_RES, SSAO_NOISE_TEX_RES, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texSSAO, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
+
+	GLuint FBOssaoBlur, texSSAOblur;
+	glGenFramebuffers(1, &FBOssaoBlur);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOssaoBlur);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	glGenTextures(1, &texSSAOblur);
+	glBindTexture(GL_TEXTURE_2D, texSSAOblur);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, window.width, window.height, 0, GL_RED, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &texNoise);
+	glBindTexture(GL_TEXTURE_2D, texNoise);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SSAO_NOISE_TEX_RES, SSAO_NOISE_TEX_RES, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texSSAOblur, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	P = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, farPlane);
@@ -196,6 +259,33 @@ int main() {
 
 	programPointShadow.use();
 	programPointShadow.set_float("farPlane", farPlane);
+
+	programLightingPass.use();
+	programLightingPass.set_int("gPositions", 0);
+	programLightingPass.set_int("gNormals", 1);
+	programLightingPass.set_int("gColorSpecs", 2);
+
+	programSSAOLightingPass.use();
+	programSSAOLightingPass.set_int("gPositions", 0);
+	programSSAOLightingPass.set_int("gNormals", 1);
+	programSSAOLightingPass.set_int("gColorSpecs", 2);
+	programSSAOLightingPass.set_int("ssao", 3);
+
+	programSSAO.use();
+	programSSAO.set_int("gVSpositions", 0);
+	programSSAO.set_int("gVSnormals", 1);
+	programSSAO.set_int("noise", 2);
+	programSSAO.set_vec2("screenDim", &glm::vec2(window.width, window.height)[0]);
+	programSSAO.set_float("noiseTexRes", SSAO_NOISE_TEX_RES);
+	for (unsigned int i = 0; i < NB_SSAO_SAMPLES; ++i) {
+		programSSAO.set_vec3(("kernel[" + std::to_string(i) + "]").c_str(), &ssaoKernel[i][0]);
+	}
+
+	programSSAOblur.use();
+	programSSAOblur.set_int("ssao", 0);
+
+	programBloom.use();
+	programBloom.set_int("bloom", 0);
 
 	M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
 	M[1] = glm::scale(M[1], glm::vec3(7.5f));
@@ -241,19 +331,21 @@ int main() {
 			MVP[i] = VP * M[i];
 		}
 
+		Shader& geometryPass = ssao ? programSSAOGeometryPass : programGeometryPass;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 		glViewport(0, 0, window.width, window.height);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		programGeometryPass.use();
+		geometryPass.use();
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, lightingOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &V[0][0]);
+		glBufferSubData(GL_UNIFORM_BUFFER, UBOtransformsOffsets[1], sizeof(glm::mat4), &V[0][0]);
 
 		initUBOtransform(M[0], MVP[0], normalMatrix[0]);
-		backpack.draw(programGeometryPass, GL_TEXTURE0, "Map");
+		backpack.draw(geometryPass, GL_TEXTURE0, "Map");
 
 		glBindVertexArray(VAOroom);
 		bindSimpleModelTexs(texRoom);
@@ -267,27 +359,30 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
+		if (ssao) {
+			ssaoPass(FBOssao, FBOssaoBlur, VAOquad, gPosition, gNormal, texNoise, texSSAO, programSSAO, programSSAOblur);
+		}
+
+		Shader& lightingPass = ssao ? programSSAOLightingPass : programLightingPass;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, FBOhdr);
 		glViewport(0, 0, window.width, window.height);
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		programLightingPass.use();
+		lightingPass.use();
 
 		glBindVertexArray(VAOquad);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, gPosition);
-		programLightingPass.set_int("worldPositions", 0);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gNormal);
-		programLightingPass.set_int("worldNorms", 1);
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, gColorSpec);
-		programLightingPass.set_int("colorSpecs", 2);
-		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			glActiveTexture(shadowBaseTexUnit + i);
-			glBindTexture(GL_TEXTURE_CUBE_MAP, texPointShadow[i]);
-		}
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, texSSAOblur);
+		glm::mat4 V1 = glm::inverse(V);
+		lightingPass.set_mat4("V1", &V1[0][0]);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
@@ -299,7 +394,7 @@ int main() {
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
 			programLight.set_vec3("lightColor", &pointLights[i].color[0]);
 			MVPlight[i] = VP * Mlight[i];
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVPlight[i]);
+			glBufferSubData(GL_UNIFORM_BUFFER, UBOtransformsOffsets[2], sizeof(glm::mat4), &MVPlight[i]);
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
@@ -310,12 +405,11 @@ int main() {
 		glBindVertexArray(VAOquad);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texHDR[1]);
-		programBloom.set_int("bloom", 0);
 		bool horizontal = true;
 		for (unsigned int i = 0; i < 10; ++i) {
 			programBloom.set_int("horizontal", horizontal);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
-			horizontal != horizontal;
+			horizontal = !horizontal;
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -363,6 +457,7 @@ bool init() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	glfwWindowHint(GLFW_SAMPLES, 4);
 
 #ifdef __APPLE__
@@ -435,6 +530,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) ssao = !ssao;
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && ssaoPower < 10) ssaoPower++;
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && ssaoPower > 1) ssaoPower--;
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && ssaoRadius < 8.0f) ssaoRadius += 0.5f;
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS && ssaoRadius > 0.5f) ssaoRadius -= 0.5f;
 }
 
 GLuint load_cubemap(std::vector<std::string>& paths) {
@@ -538,6 +638,34 @@ void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texP
 	}
 }
 
+void ssaoPass(GLuint& FBOssao, GLuint& FBOssaoBlur, GLuint& VAOquad, GLuint& gPosition, GLuint& gNormal, GLuint& texNoise, GLuint& texSSAO, Shader& programSSAO, Shader& programSSAOblur) {
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOssao);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	programSSAO.use();
+	glBindVertexArray(VAOquad);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, texNoise);
+	programSSAO.set_mat4("P", &P[0][0]);
+	programSSAO.set_int("ssaoPower", ssaoPower);
+	programSSAO.set_float("radius", ssaoRadius);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOssaoBlur);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	programSSAOblur.use();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texSSAO);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 void computeVertTangents(float* vertices, float* to) {
 	const unsigned int NB_FACES = 6;
 	const unsigned int NB_POS = 3;
@@ -598,10 +726,10 @@ void computeVertTangents(float* vertices, float* to) {
 }
 
 void initUBOtransform(glm::mat4&M, glm::mat4& MVP, glm::mat3& normalMatrix) {
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), &M);
-	glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
+	glBufferSubData(GL_UNIFORM_BUFFER, UBOtransformsOffsets[0], sizeof(glm::mat4), &M);
+	glBufferSubData(GL_UNIFORM_BUFFER, UBOtransformsOffsets[2], sizeof(glm::mat4), &MVP);
 	for (unsigned int i = 0; i < 3; ++i) {
-		glBufferSubData(GL_UNIFORM_BUFFER, nm_base_offset + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i]);
+		glBufferSubData(GL_UNIFORM_BUFFER, UBOtransformsOffsets[3] + i * sizeof(glm::vec4), sizeof(glm::vec3), &normalMatrix[i]);
 	}
 }
 
@@ -639,5 +767,32 @@ void bindSimpleModelTexs(GLuint* tex) {
 }
 
 void initSSAOKernel() {
+	for (unsigned int i = 0; i < NB_SSAO_SAMPLES; ++i) {
+		glm::vec3 sample(
+			randomFloat(generator) * 2.0f - 1.0f,	// to [-1, 1] range
+			randomFloat(generator) * 2.0f - 1.0f,	// to [-1, 1] range
+			randomFloat(generator)
+		);
+		float scale = (float)i / NB_SSAO_SAMPLES;
+		scale = lerp(0.1f, 1.0f, scale * scale);
+		sample = glm::normalize(sample) * randomFloat(generator) * scale;
+		ssaoKernel.push_back(sample);
+	}
+}
 
+void initSSAONoise() {
+	const unsigned int NB_ROTATIONS = SSAO_NOISE_TEX_RES * SSAO_NOISE_TEX_RES;
+	for (unsigned int i = 0; i < NB_ROTATIONS; ++i) {
+		ssaoNoise.push_back(
+			glm::vec3(
+				randomFloat(generator) * 2.0f - 1.0f,	// to [-1, 1] range
+				randomFloat(generator) * 2.0f - 1.0f,	// to [-1, 1] range
+				0.0f
+			)
+		);
+	}
+}
+
+float lerp(float a, float b, float c) {
+	return a + c * (b - a);
 }
