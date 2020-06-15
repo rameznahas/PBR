@@ -31,7 +31,7 @@ void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 GLuint load_cubemap(std::vector<std::string>& paths);
-GLuint loadTexture(const char* path, GLenum tex);
+GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection);
 void shadowPass(Shader& programPointShadow, GLuint& FBOpointShadow, GLuint* texPointShadow, Model& model, GLuint& VAOroom, GLuint& VAOcube);
 void ssaoPass(GLuint& FBOssao, GLuint& FBOssaoBlur, GLuint& VAOquad, GLuint& gPosition, GLuint& gNormal, GLuint& texNoise, GLuint& texSSAO, Shader& programSSAO, Shader& programSSAOblur);
 void computeVertTangents(float* vertices, float* to);
@@ -100,55 +100,55 @@ Point_Light pointLights[NB_POINT_LIGHTS] = {
 		glm::vec3(5.0f, -5.0f, 2.5f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 3.0f, 0.0f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, -6.5f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(-6.5f, 6.5f, 0.0f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 2.0f, -3.25f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, 0.0f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(-6.5f, 6.5f, 6.5f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(0.0f, 6.5f, 6.5f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	),
 	Point_Light(
 		glm::vec3(6.5f, 6.5f, 6.5f),
 		glm::vec3(5.0f),
 		glm::vec3(0.3f), glm::vec3(0.5f), glm::vec3(1.0f),
-		1.0f, 0.22f, 0.20f
+		1.0f, 0.7f, 1.8f
 	)
 };
 
@@ -175,6 +175,7 @@ double last_frame = 0.0f;
 double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
+float exposure = 4.5f;
 bool ssao = false;
 int ssaoPower = 10;
 float ssaoRadius = 8.0f;

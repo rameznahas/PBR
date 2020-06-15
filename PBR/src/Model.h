@@ -18,8 +18,8 @@ public:
 private:
 	void process_node(aiNode* node, const aiScene* scene);
 	Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-	std::vector<Texture> load_material_textures(aiMaterial* material, aiTextureType type, const char* type_name);
-	GLuint load_texture(const char* path);
+	std::vector<Texture> load_material_textures(aiMaterial* material, aiTextureType type, const char* type_name, bool gammaCorrection);
+	GLuint load_texture(const char* path, bool gammaCorrection);
 
 	std::vector<Mesh> meshes;
 	std::unordered_map<std::string, Texture> loaded_textures;

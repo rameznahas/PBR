@@ -84,19 +84,19 @@ Mesh Model::process_mesh(aiMesh* mesh, const aiScene* scene) {
 
 	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 	
-	std::vector<Texture> diffuse = load_material_textures(material, aiTextureType_DIFFUSE, "diffuse");
+	std::vector<Texture> diffuse = load_material_textures(material, aiTextureType_DIFFUSE, "diffuse", true);
 	textures.insert(textures.end(), diffuse.begin(), diffuse.end());
 
-	std::vector<Texture> specular = load_material_textures(material, aiTextureType_SPECULAR, "specular");
+	std::vector<Texture> specular = load_material_textures(material, aiTextureType_SPECULAR, "specular", false);
 	textures.insert(textures.end(), specular.begin(), specular.end());
 
-	std::vector<Texture> normals = load_material_textures(material, aiTextureType_HEIGHT, "normal");
+	std::vector<Texture> normals = load_material_textures(material, aiTextureType_HEIGHT, "normal", false);
 	textures.insert(textures.end(), normals.begin(), normals.end());
 
 	return Mesh(vertices, indices, textures);
 }
 
-std::vector<Texture> Model::load_material_textures(aiMaterial* material, aiTextureType type, const char* type_name) {
+std::vector<Texture> Model::load_material_textures(aiMaterial* material, aiTextureType type, const char* type_name, bool gammaCorrection) {
 	std::vector<Texture> textures;
 
 	for (unsigned int i = 0; i < material->GetTextureCount(type); ++i) {
@@ -108,7 +108,7 @@ std::vector<Texture> Model::load_material_textures(aiMaterial* material, aiTextu
 		auto tex = loaded_textures.find(file);
 
 		if (tex == loaded_textures.end()) {
-			texture.id = load_texture(file);
+			texture.id = load_texture(file, gammaCorrection);
 			texture.type = type_name;
 			loaded_textures[file] = texture;
 		}
@@ -122,7 +122,7 @@ std::vector<Texture> Model::load_material_textures(aiMaterial* material, aiTextu
 	return textures;
 }
 
-GLuint Model::load_texture(const char* path) {
+GLuint Model::load_texture(const char* path, bool gammaCorrection) {
 	std::string file_path = dir + path;
 
 	GLuint texture;
@@ -131,14 +131,20 @@ GLuint Model::load_texture(const char* path) {
 	int width, height, channels;
 	unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &channels, 0);
 	if (data) {
-		GLenum format;
-		if (channels == 1) format = GL_RED;
-		else if (channels == 2) format = GL_RG;
-		else if (channels == 3) format = GL_RGB;
-		else if (channels == 4) format = GL_RGBA;
+		GLenum internalFormat, dataFormat;
+		if (channels == 1) internalFormat = dataFormat = GL_RED;
+		else if (channels == 2) internalFormat = dataFormat = GL_RG;
+		else if (channels == 3) {
+			internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+			dataFormat = GL_RGB;
+		}
+		else if (channels == 4) {
+			internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+			dataFormat = GL_RGBA;
+		}
 
 		glBindTexture(GL_TEXTURE_2D, texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

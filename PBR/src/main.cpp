@@ -418,6 +418,7 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		programToneMapping.use();
+		programToneMapping.set_float("exposure", exposure);
 		for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			glBindTexture(GL_TEXTURE_2D, texHDR[i]);
@@ -535,6 +536,14 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && ssaoPower > 1) ssaoPower--;
 	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && ssaoRadius < 8.0f) ssaoRadius += 0.5f;
 	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS && ssaoRadius > 0.5f) ssaoRadius -= 0.5f;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+		exposure += 0.5f;
+		std::cout << exposure << std::endl;
+	}
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+		exposure -= 0.5f;
+		std::cout << exposure << std::endl;
+	}
 }
 
 GLuint load_cubemap(std::vector<std::string>& paths) {
@@ -572,23 +581,29 @@ GLuint load_cubemap(std::vector<std::string>& paths) {
 	return cubemap;
 }
 
-GLuint loadTexture(const char* path, GLenum tex) {
+GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection) {
 	GLuint texture;
 
 	int width, height, channels;
 	stbi_set_flip_vertically_on_load(true);
 	unsigned char* data = stbi_load(path, &width, &height, &channels, 0);
 	if (data) {
-		int format;
-		if (channels == 1) format = GL_RED;
-		else if (channels == 2) format = GL_RG;
-		else if (channels == 3) format = GL_RGB;
-		else if (channels == 4) format = GL_RGBA;
+		GLenum internalFormat, dataFormat;
+		if (channels == 1) internalFormat = dataFormat = GL_RED;
+		else if (channels == 2) internalFormat = dataFormat = GL_RG;
+		else if (channels == 3) {
+			internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+			dataFormat = GL_RGB;
+		}
+		else if (channels == 4) {
+			internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+			dataFormat = GL_RGBA;
+		}
 
 		glGenTextures(1, &texture);
 		glActiveTexture(tex);
 		glBindTexture(GL_TEXTURE_2D, texture);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -760,8 +775,11 @@ void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, 
 
 void initTextures(Shader& program, GLuint* texs, const char** tex_locations) {
 	program.use();
-	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
-		texs[i] = loadTexture(tex_locations[i], GL_TEXTURE0 + i);
+	texs[0] = loadTexture(tex_locations[0], GL_TEXTURE0, true);
+	program.set_int(texUniform[0], 0);
+
+	for (unsigned int i = 1; i < TEX_PER_MAT; ++i) {
+		texs[i] = loadTexture(tex_locations[i], GL_TEXTURE0 + i, false);
 		program.set_int(texUniform[i], i);
 	}
 }

@@ -98,7 +98,7 @@ float shadow(vec3 worldPos, float diskRadius, unsigned int idx) {
 
 	for (unsigned int i = 0; i < NB_SAMPLES; ++i) {
 		float closestDepth = texture(pointShadow[idx], lightToFrag + gridSamplingDisk[i] * diskRadius).r * farPlane;
-		shadow += currentDepth - bias < closestDepth ? 1.0f : -0.1f;
+		shadow += currentDepth - bias < closestDepth ? 1.0f : 0.0f;
 	}
 	return shadow / NB_SAMPLES;
 }
