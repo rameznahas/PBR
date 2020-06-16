@@ -2,11 +2,11 @@
 
 uniform vec3 lightColor;
 
-layout (location = 0) out vec4 color;
-layout (location = 1) out vec4 bloomColor;
+layout (location = 0) out vec3 color;
+layout (location = 1) out vec3 bloomColor;
 
 void main() {
-	color = vec4(lightColor, 1.0f);
-	float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-	bloomColor = brightness > 2.5f ? color : vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	color = lightColor;
+	float brightness = dot(color, vec3(0.2126f, 0.7152f, 0.0722f));
+	bloomColor = brightness > 5.0f ? color : vec3(0.0f);
 }

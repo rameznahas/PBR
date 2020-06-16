@@ -10,7 +10,7 @@ uniform bool horizontal;
 
 float weights[NB_WEIGHTS] = { 0.227027f, 0.1945946f, 0.1216216f, 0.054054f, 0.016216f };
 
-out vec4 color;
+out vec3 color;
 
 void main() {
 	vec2 texOffset = 1.0f / textureSize(bloom, 0);
@@ -28,5 +28,5 @@ void main() {
 			col += texture(bloom, fsIn.uv - vec2(0.0f, texOffset.y * i)).rgb * weights[i];
 		}
 	}
-	color = vec4(col, 1.0f);
+	color = col;
 }
