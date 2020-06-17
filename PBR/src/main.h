@@ -16,6 +16,9 @@
 #define NB_SPHERE_ROWS 7
 #define NB_SPHERE_COLS 7
 #define NB_HDR_TEX 2
+#define NB_SCENES 5
+#define HDR_ENV_RES 1024
+#define HDR_IRR_RES 32
 #define TEX_PER_MAT 3
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
@@ -26,21 +29,63 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-GLuint load_cubemap(std::vector<std::string>& paths);
+GLuint loadCubemap(std::vector<std::string>& paths);
 GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection);
+GLuint loadHDRmap(const char* path);
 void computeVertTangents(float* vertices, float* to);
 size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO);
 void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
 void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3& NM);
+void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
 
 Window window;
 
 Camera camera(
 	glm::vec3(0.0f, 1.0f, 23.0f),
-	glm::vec3(0.0f, -0.1f, -1.0f),
+	glm::vec3(-10.0f, 9.0f, -33.0f),
 	WORLD_UP,
 	45.0f
 );
+
+Camera camHDRenv[NB_CUBEMAP_FACES] = {
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_RIGHT,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_RIGHT,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_UP,
+		WORLD_FWD,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_UP,
+		-WORLD_FWD,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		WORLD_FWD,
+		-WORLD_UP,
+		90.0f
+	),
+	Camera(
+		glm::vec3(0.0f),
+		-WORLD_FWD,
+		-WORLD_UP,
+		90.0f
+	)
+};
 
 glm::vec3 lightPositions[NB_POINT_LIGHTS] = {
 	glm::vec3(-10.0f, 10.0f, 10.0f),
@@ -51,6 +96,9 @@ glm::vec3 lightPositions[NB_POINT_LIGHTS] = {
 
 glm::vec3 lightColors(300.0f);
 
+glm::mat4 M, V, P, MVP;
+glm::mat3 NM;
+
 glm::vec3 sphereAlbedo(0.5f, 0.0f, 0.0f);
 const float spacing = 2.5f;
 
@@ -60,6 +108,15 @@ double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
 float exposure = 4.5f;
+unsigned int currentScene = 0;
+
+const char* scenePaths[NB_SCENES] = {
+	"./assets/HDR_maps/room/room.hdr",
+	"./assets/HDR_maps/barcelona_rooftops/barcelona_rooftops.hdr",
+	"./assets/HDR_maps/grand_canyon/grand_canyon.hdr",
+	"./assets/HDR_maps/snow/snow.hdr",
+	"./assets/HDR_maps/beach/beach.hdr"
+};
 
 const char* texUniform[TEX_PER_MAT] = {
 	"material1.diffuseMap",
@@ -185,8 +242,9 @@ GLfloat roomVertices[] = {
 	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f
 };
 
-GLfloat skyboxVertices[] = {
-	// positions		
+GLfloat cubeMapVertices[] = {
+	// positions	
+	// back face
 	-1.0f, -1.0f, -1.0f,
 	 1.0f, -1.0f, -1.0f,
 	 1.0f,  1.0f, -1.0f,

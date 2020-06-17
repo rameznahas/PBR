@@ -60,11 +60,16 @@
   <ItemGroup>
     <None Include="shaders\outline_fragment.shader" />
     <None Include="shaders\lightFragment.shader" />
-    <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\quadVertex.shader" />
     <None Include="shaders\pbrLightingFragment.shader" />
     <None Include="shaders\lightingVertex.shader" />
     <None Include="shaders\bloomFragment.shader" />
     <None Include="shaders\toneMappingFragment.shader" />
+    <None Include="shaders\lightVertex.shader" />
+    <None Include="shaders\rectToCubemapFragment.shader" />
+    <None Include="shaders\hdrSkyboxVertex.shader" />
+    <None Include="shaders\hdrSkyboxFragment.shader" />
+    <None Include="shaders\cubemapVertex.shader" />
+    <None Include="shaders\envToIrrandianceMapFragment.shader" />
   </ItemGroup>
 </Project>

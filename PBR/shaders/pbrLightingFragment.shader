@@ -27,6 +27,7 @@ layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned of
 };
 
 uniform Material material1;
+uniform samplerCube irradianceMap;
 
 const float PI = 3.14159265359f;
 const vec3 gammaCorrection = vec3(1.0f / 2.2f);
@@ -38,6 +39,7 @@ out vec4 color;
 
 float NDF(float NdotH, float a2);
 vec3 F(float VdotH, vec3 F0);
+vec3 fRoughness(float VdotH, vec3 F0);
 float G(vec3 N, vec3 L, vec3 V, float k);
 float geometrySchlickGGX(float NdotX, float k);
 
@@ -45,7 +47,7 @@ void main() {
 	vec3 V = normalize(wViewPos - fsIn.wPos);
 	vec3 N = normalize(fsIn.wNorm);
 	float NdotV = max(dot(N, V), 0.0f);
-	
+
 	vec3 F0 = vec3(0.04f);
 	F0 = mix(F0, material1.albedo, material1.metallic);
 
@@ -91,7 +93,11 @@ void main() {
 		L0 += (diffuse + specular) * radiance * NdotL;
 	}
 
-	vec3 ambient = vec3(0.03f) * material1.albedo * material1.ao;
+	vec3 irradiance = texture(irradianceMap, N).rgb;
+	vec3 kd = vec3(1.0f) - fRoughness(NdotV, F0);
+	kd *= (1.0f - material1.metallic);
+	vec3 diffuse = kd * irradiance * material1.albedo;
+	vec3 ambient = diffuse * material1.ao;
 	/*color = ambient + L0;
 
 	float brightness = dot(color, vec3(0.2126f, 0.7152f, 0.0722f));
@@ -111,6 +117,10 @@ float NDF(float NdotH, float a2) {
 // Freshnel-Schlick function for reflection percentage
 vec3 F(float VdotH, vec3 F0) {
 	return F0 + (1.0f - F0) * pow(1.0f - VdotH, 5);
+}
+
+vec3 fRoughness(float VdotH, vec3 F0) {
+	return F0 + (max(vec3(1.0f - material1.roughness), F0) - F0) * pow(1.0f - VdotH, 5.0);
 }
 
 // Geometry function using Smith's method
