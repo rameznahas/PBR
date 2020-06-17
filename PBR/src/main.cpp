@@ -128,7 +128,7 @@ int main() {
 	for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
 		glBindTexture(GL_TEXTURE_2D, texHDR[i]);
 		programToneMapping.set_int(samplers[i], i);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texHDR[i], 0);
@@ -145,13 +145,27 @@ int main() {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	GLuint FBObloom;
-	glGenFramebuffers(1, &FBObloom);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texHDR[1], 0);
+	GLuint FBObloom[NB_BLOOM_TEX], texBloom[NB_BLOOM_TEX];
+	glGenFramebuffers(NB_BLOOM_TEX, FBObloom);
+	glGenTextures(NB_BLOOM_TEX, texBloom);
+	for (unsigned int i = 0; i < NB_BLOOM_TEX; ++i) {
+		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom[i]);
+
+		glBindTexture(GL_TEXTURE_2D, texBloom[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, window.width, window.height, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texBloom[i], 0);
+	}
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	GLuint gBuffer, gPosition, gNormal, gColorSpec, gRBO;
 	glGenFramebuffers(1, &gBuffer);
@@ -287,6 +301,10 @@ int main() {
 	programBloom.use();
 	programBloom.set_int("bloom", 0);
 
+	programToneMapping.use();
+	programToneMapping.set_int("hdrTex", 0);
+	programToneMapping.set_int("bloom", 1);
+
 	M[1] = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f));
 	M[1] = glm::scale(M[1], glm::vec3(7.5f));
 	normalMatrix[1] = glm::transpose(glm::inverse(glm::mat3(M[1])));
@@ -398,18 +416,22 @@ int main() {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom);
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glBindFramebuffer(GL_FRAMEBUFFER, FBObloom[0]);
 
 		programBloom.use();
 		glBindVertexArray(VAOquad);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texHDR[1]);
-		bool horizontal = true;
-		for (unsigned int i = 0; i < 10; ++i) {
-			programBloom.set_int("horizontal", horizontal);
+		programBloom.set_int("horizontal", true);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		for (unsigned int i = 1; i < 10; ++i) {
+			unsigned int current = i % 2;
+			unsigned int other = 1 - current;
+			glBindFramebuffer(GL_FRAMEBUFFER, FBObloom[current]);
+			glBindTexture(GL_TEXTURE_2D, texBloom[other]);
+			programBloom.set_int("horizontal", other);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
-			horizontal = !horizontal;
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -419,10 +441,10 @@ int main() {
 
 		programToneMapping.use();
 		programToneMapping.set_float("exposure", exposure);
-		for (unsigned int i = 0; i < NB_HDR_TEX; ++i) {
-			glActiveTexture(GL_TEXTURE0 + i);
-			glBindTexture(GL_TEXTURE_2D, texHDR[i]);
-		}
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texHDR[0]);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texBloom[0]);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, FBOhdr);

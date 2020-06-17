@@ -16,7 +16,7 @@
 #define NB_CUBEMAP_FACES 6
 #define NB_MODELS 5
 #define NB_HDR_TEX 2
-#define NB_BLOOM_PASSES 2
+#define NB_BLOOM_TEX 2
 #define NB_TRANSF_UNIFORMS 4
 #define SSAO_NOISE_TEX_RES 4
 #define TEX_PER_MAT 3
