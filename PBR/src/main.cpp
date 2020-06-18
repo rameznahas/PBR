@@ -49,14 +49,29 @@ int main() {
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	const unsigned int viewPosOffset = offset;
 
+	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		MVPenvCam[i] = P * camEnvMap[i].get_view_matrix();
+	}
+
+	GLuint FBOcapture, RBOcapture;
+	glGenFramebuffers(1, &FBOcapture);
+	glBindFramebuffer(GL_FRAMEBUFFER, FBOcapture);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	glGenRenderbuffers(1, &RBOcapture);
+	glBindRenderbuffer(GL_RENDERBUFFER, RBOcapture);
+
 	GLuint texEnvMap[NB_SCENES], texIrradianceMap[NB_SCENES]; 
 	GLuint texPreFilteredEnvMap[NB_SCENES], texBRDFintegrationMap[NB_SCENES];
 	for (unsigned int i = 0; i < NB_SCENES; ++i) {
-		genEnvMap(scenePaths[i], texEnvMap[i], VAOcubeMap, UBOtransforms);
-		genIrradianceMap(texEnvMap[i], texIrradianceMap[i], VAOcubeMap, UBOtransforms);
-		genPreFilteredEnvMap(texEnvMap[i], texPreFilteredEnvMap[i], VAOcubeMap, UBOtransforms);
-		genBRDFintegrationMap(texBRDFintegrationMap[i], VAOquad);
+		genEnvMap(FBOcapture, RBOcapture, scenePaths[i], texEnvMap[i], VAOcubeMap, UBOtransforms);
+		genIrradianceMap(FBOcapture, RBOcapture, texEnvMap[i], texIrradianceMap[i], VAOcubeMap, UBOtransforms);
+		genPreFilteredEnvMap(FBOcapture, RBOcapture, texEnvMap[i], texPreFilteredEnvMap[i], VAOcubeMap, UBOtransforms);
+		genBRDFintegrationMap(FBOcapture, RBOcapture, texBRDFintegrationMap[i], VAOquad);
 	}
+	glDeleteFramebuffers(1, &FBOcapture);
+	glDeleteRenderbuffers(1, &RBOcapture);
 
 	programPBRlighting.use();
 	programPBRlighting.set_vec3("material1.albedo", &sphereAlbedo[0]);
@@ -502,189 +517,118 @@ void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3&
 	}
 }
 
-void genEnvMap(const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
-	Shader programEnvMapGeneration("./shaders/cubemapVertex.shader", "./shaders/envMapGenerationFragment.shader");
+void createTextureCubemap(GLuint& tex, GLint internalFormat, GLsizei width, GLsizei height, GLenum format, GLenum type, GLint textureWrapping, GLint minFiltering, GLint magFiltering, bool mipmap) {
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, tex);
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalFormat, width, height, 0, format, type, nullptr);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, textureWrapping);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, textureWrapping);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, textureWrapping);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, minFiltering);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, magFiltering);
 
+	if (mipmap) {
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+	}
+}
+
+void drawToCubemapFaces(const GLuint& tex, GLint level) {
+	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, tex, level);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVPenvCam[i]);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+	}
+}
+
+void genEnvMap(const GLuint& FBO, const GLuint& RBO, const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
 	GLuint texHDRmap = loadHDRmap(path);
 
-	GLuint FBO, RBO;
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glViewport(0, 0, ENV_MAP_RES, ENV_MAP_RES);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	createTextureCubemap(texEnvMap, GL_RGB16F, ENV_MAP_RES, ENV_MAP_RES, GL_RGB, GL_FLOAT, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, false);
 
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, ENV_MAP_RES, ENV_MAP_RES);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
-	glGenTextures(1, &texEnvMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap);
-	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, ENV_MAP_RES, ENV_MAP_RES, 0, GL_RGB, GL_FLOAT, nullptr);
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programEnvMapGeneration.use();
+	glViewport(0, 0, ENV_MAP_RES, ENV_MAP_RES);
+
+	Shader program("./shaders/cubemapVertex.shader", "./shaders/envMapGenerationFragment.shader");
+	program.use();
 	glBindVertexArray(VAOcubeMap);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texHDRmap);
-	programEnvMapGeneration.set_int("equirectangularMap", 0);
+	program.set_int("equirectangularMap", 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
-	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-
-	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texEnvMap, 0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		MVP = P * camHDRenv[i].get_view_matrix();
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
+	drawToCubemapFaces(texEnvMap, 0);
 	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
-	programEnvMapGeneration.del();
+	program.del();
 	glDeleteTextures(1, &texHDRmap);
-	glDeleteFramebuffers(1, &FBO);
-	glDeleteRenderbuffers(1, &RBO);
 }
 
-void genIrradianceMap(const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
-	Shader programIrradianceMapGeneration("./shaders/cubemapVertex.shader", "./shaders/irradianceMapGenerationFragment.shader");
+void genIrradianceMap(const GLuint& FBO, const GLuint& RBO, const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
+	createTextureCubemap(texIrradianceMap, GL_RGB16F, IRR_MAP_RES, IRR_MAP_RES, GL_RGB, GL_FLOAT, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR, false);
 
-	GLuint FBO, RBO;
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glViewport(0, 0, IRR_MAP_RES, IRR_MAP_RES);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, IRR_MAP_RES, IRR_MAP_RES);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
-	glGenTextures(1, &texIrradianceMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texIrradianceMap);
-	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, IRR_MAP_RES, IRR_MAP_RES, 0, GL_RGB, GL_FLOAT, nullptr);
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programIrradianceMapGeneration.use();
+	glViewport(0, 0, IRR_MAP_RES, IRR_MAP_RES);
+
+	Shader program("./shaders/cubemapVertex.shader", "./shaders/irradianceMapGenerationFragment.shader");
+	program.use();
 	glBindVertexArray(VAOcubeMap);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap);
-	programIrradianceMapGeneration.set_int("environmentMap", 0);
+	program.set_int("environmentMap", 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
-	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+	drawToCubemapFaces(texIrradianceMap, 0);
 
-	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texIrradianceMap, 0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		MVP = P * camHDRenv[i].get_view_matrix();
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-	}
-
-	programIrradianceMapGeneration.del();
-	glDeleteFramebuffers(1, &FBO);
-	glDeleteRenderbuffers(1, &RBO);
+	program.del();
 }
 
-void genPreFilteredEnvMap(const GLuint& texEnvMap, GLuint& texPreFilteredEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
-	Shader programPreFilteredEnvMapGeneration("./shaders/cubemapVertex.shader", "./shaders/preFilteredMapGenerationFragment.shader");
-
-	GLuint FBO, RBO;
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+void genPreFilteredEnvMap(const GLuint& FBO, const GLuint& RBO, const GLuint& texEnvMap, GLuint& texPreFilteredEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
+	createTextureCubemap(texPreFilteredEnvMap, GL_RGB16F, PRE_FILTERED_ENV_MAP_RES, PRE_FILTERED_ENV_MAP_RES, GL_RGB, GL_FLOAT, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, true);
+	
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, PRE_FILTERED_ENV_MAP_RES, PRE_FILTERED_ENV_MAP_RES);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
-	glGenTextures(1, &texPreFilteredEnvMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texPreFilteredEnvMap);
-	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, PRE_FILTERED_ENV_MAP_RES, PRE_FILTERED_ENV_MAP_RES, 0, GL_RGB, GL_FLOAT, nullptr);
-	}
-	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programPreFilteredEnvMapGeneration.use();
+	Shader program("./shaders/cubemapVertex.shader", "./shaders/preFilteredMapGenerationFragment.shader");
+	program.use();
 	glBindVertexArray(VAOcubeMap);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap);
-	programPreFilteredEnvMapGeneration.set_int("environmentMap", 0);
+	program.set_int("environmentMap", 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
-
-	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
 	const unsigned int MIPMAP_LEVELS = 5;
 	for (unsigned int mipmapLevel = 0; mipmapLevel < MIPMAP_LEVELS; ++mipmapLevel) {
-		unsigned int mipmapRES = PRE_FILTERED_ENV_MAP_RES / pow(2.0f, mipmapLevel);	
+		unsigned int mipmapRES = PRE_FILTERED_ENV_MAP_RES / pow(2, mipmapLevel);	
 		glViewport(0, 0, mipmapRES, mipmapRES);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipmapRES, mipmapRES);
 
 		float roughness = (float)mipmapLevel / (MIPMAP_LEVELS - 1.0f);
-		programPreFilteredEnvMapGeneration.set_float("roughness", roughness);
-		for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texPreFilteredEnvMap, mipmapLevel);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		program.set_float("roughness", roughness);
 
-			MVP = P * camHDRenv[i].get_view_matrix();
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-		}
+		drawToCubemapFaces(texPreFilteredEnvMap, mipmapLevel);
 	}
 
-	programPreFilteredEnvMapGeneration.del();
-	glDeleteFramebuffers(1, &FBO);
-	glDeleteRenderbuffers(1, &RBO);
+	program.del();
 }
 
-void genBRDFintegrationMap(GLuint& texBRDFintegrationMap, const GLuint& VAOquad) {
-	Shader programBRDFIntegrationMap("./shaders/quadVertex.shader", "./shaders/brdfIntegrationMapGenerationFragment.shader");
-
-	GLuint FBO, RBO;
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glViewport(0, 0, BRDF_INT_MAP_RES, BRDF_INT_MAP_RES);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-	glGenRenderbuffers(1, &RBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, BRDF_INT_MAP_RES, BRDF_INT_MAP_RES);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
-
+void genBRDFintegrationMap(const GLuint& FBO, const GLuint& RBO, GLuint& texBRDFintegrationMap, const GLuint& VAOquad) {
 	glGenTextures(1, &texBRDFintegrationMap);
 	glBindTexture(GL_TEXTURE_2D, texBRDFintegrationMap);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, BRDF_INT_MAP_RES, BRDF_INT_MAP_RES, 0, GL_RG, GL_FLOAT, nullptr);
@@ -693,17 +637,20 @@ void genBRDFintegrationMap(GLuint& texBRDFintegrationMap, const GLuint& VAOquad)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texBRDFintegrationMap, 0);
-
+	
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, BRDF_INT_MAP_RES, BRDF_INT_MAP_RES);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programBRDFIntegrationMap.use();
+	glViewport(0, 0, BRDF_INT_MAP_RES, BRDF_INT_MAP_RES);
+
+	Shader program("./shaders/quadVertex.shader", "./shaders/brdfIntegrationMapGenerationFragment.shader");
+	program.use();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindVertexArray(VAOquad);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	programBRDFIntegrationMap.del();
-	glDeleteFramebuffers(1, &FBO);
-	glDeleteRenderbuffers(1, &RBO);
+	program.del();
 }

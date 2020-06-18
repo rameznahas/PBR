@@ -38,10 +38,12 @@ void computeVertTangents(float* vertices, float* to);
 size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO);
 void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
 void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3& NM);
-void genEnvMap(const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
-void genIrradianceMap(const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
-void genPreFilteredEnvMap(const GLuint& texEnvMap, GLuint& texPreFilteredEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
-void genBRDFintegrationMap(GLuint& texBRDFintegrationMap, const GLuint& VAOquad);
+void createTextureCubemap(GLuint& tex, GLint internalFormat, GLsizei width, GLsizei height, GLenum format, GLenum type, GLint textureWrapping, GLint minFiltering, GLint magFiltering, bool mipmap);
+void drawToCubemapFaces(const GLuint& tex, GLint level);
+void genEnvMap(const GLuint& FBO, const GLuint& RBO, const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genIrradianceMap(const GLuint& FBO, const GLuint& RBO, const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genPreFilteredEnvMap(const GLuint& FBO, const GLuint& RBO, const GLuint& texEnvMap, GLuint& texPreFilteredEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genBRDFintegrationMap(const GLuint& FBO, const GLuint& RBO, GLuint& texBRDFintegrationMap, const GLuint& VAOquad);
 
 Window window;
 
@@ -52,7 +54,8 @@ Camera camera(
 	45.0f
 );
 
-Camera camHDRenv[NB_CUBEMAP_FACES] = {
+glm::mat4 MVPenvCam[NB_CUBEMAP_FACES];
+Camera camEnvMap[NB_CUBEMAP_FACES] = {
 	Camera(
 		glm::vec3(0.0f),
 		WORLD_RIGHT,
@@ -139,112 +142,6 @@ const char* cubeTexLoc[TEX_PER_MAT] = {
 	"./assets/textures/concrete/concrete_diff_2k.png",
 	"./assets/textures/concrete/concrete_spec_2k.png",
 	"./assets/textures/concrete/concrete_nor_2k.png"
-};
-
-std::vector<std::string> cubeMap = {
-	"./assets/skybox/right.png",
-	"./assets/skybox/left.png",
-	"./assets/skybox/top.png",
-	"./assets/skybox/bottom.png",
-	"./assets/skybox/front.png",
-	"./assets/skybox/back.png",
-};
-
-GLfloat cubeVerticesTangents[396];
-// positions // normals // uvs // tangents
-GLfloat cubeVertices[] = {
-	// positions				 // normals					// uvs
-	// back face
-	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
-	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
-	// front face				 	    
-	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
-	// left face					    
-	-1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	-1.0f, -1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
-	-1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,	1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,	1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	// right face
-	 1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
-	 1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	// bottom face
-	-1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f, -1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
-	// top face
-	-1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f,  1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f
-};
-
-// positions // normals // uvs // tangents
-GLfloat roomVerticesTangents[396];
-// winding order reversed (CW)
-GLfloat roomVertices[] = {
-	// positions				 // normals					// uvs
-	// back face
-	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f, -1.0f,		 0.0f,  0.0f,  1.0f,		0.0f, 0.0f,
-	// front face	
-	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
-	-1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 0.0f,
-	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
-	-1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		0.0f, 1.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 1.0f,
-	 1.0f, -1.0f,  1.0f,		 0.0f,  0.0f, -1.0f,		1.0f, 0.0f,
-	// left face	
-	-1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	-1.0f, -1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
-	-1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f,  1.0f,		 1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	// right face
-	 1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f,  1.0f,		-1.0f,  0.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 1.0f,
-	 1.0f, -1.0f, -1.0f,		-1.0f,  0.0f,  0.0f,		0.0f, 0.0f,
-	// bottom face
-	-1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f, -1.0f, -1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f, -1.0f,  1.0f,		 0.0f,  1.0f,  0.0f,		0.0f, 0.0f,
-	// top face
-	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f,
-	 1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 0.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
-	 1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		1.0f, 1.0f,
-	-1.0f,  1.0f,  1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 1.0f,
-	-1.0f,  1.0f, -1.0f,		 0.0f, -1.0f,  0.0f,		0.0f, 0.0f
 };
 
 GLfloat cubeMapVertices[] = {
