@@ -49,10 +49,10 @@ int main() {
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	const unsigned int viewPosOffset = offset;
 
-	GLuint texHDRenvMap[NB_SCENES], texHDRirradianceMap[NB_SCENES];
+	GLuint texEnvMap[NB_SCENES], texIrradianceMap[NB_SCENES];
 	for (unsigned int i = 0; i < NB_SCENES; ++i) {
-		genHDRenvMap(scenePaths[i], texHDRenvMap[i], VAOcubeMap, UBOtransforms);
-		genHDRirradianceMap(texHDRenvMap[i], texHDRirradianceMap[i], VAOcubeMap, UBOtransforms);
+		genEnvMap(scenePaths[i], texEnvMap[i], VAOcubeMap, UBOtransforms);
+		genIrradianceMap(texEnvMap[i], texIrradianceMap[i], VAOcubeMap, UBOtransforms);
 	}
 
 	programPBRlighting.use();
@@ -81,7 +81,7 @@ int main() {
 		programPBRlighting.use();
 		glBindVertexArray(VAOsphere);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, texHDRirradianceMap[currentScene]);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texIrradianceMap[currentScene]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, viewPosOffset, sizeof(glm::vec3), &camera.position[0]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
@@ -112,7 +112,7 @@ int main() {
 		programHDRskybox.use();
 		glBindVertexArray(VAOcubeMap);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, texHDRenvMap[currentScene]);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap[currentScene]);
 		MVP = P * glm::mat4(glm::mat3(V));
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
 		glDepthFunc(GL_LEQUAL);
@@ -488,8 +488,8 @@ void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3&
 	}
 }
 
-void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
-	Shader programRectToCubemap("./shaders/cubemapVertex.shader", "./shaders/rectToCubemapFragment.shader");
+void genEnvMap(const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
+	Shader programEnvMapGeneration("./shaders/cubemapVertex.shader", "./shaders/envMapGenerationFragment.shader");
 
 	GLuint texHDRmap = loadHDRmap(path);
 
@@ -504,8 +504,8 @@ void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeM
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, HDR_ENV_RES, HDR_ENV_RES);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-	glGenTextures(1, &texHDRenvMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texHDRenvMap);
+	glGenTextures(1, &texEnvMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap);
 	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, HDR_ENV_RES, HDR_ENV_RES, 0, GL_RGB, GL_FLOAT, nullptr);
 	}
@@ -519,17 +519,17 @@ void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeM
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programRectToCubemap.use();
+	programEnvMapGeneration.use();
 	glBindVertexArray(VAOcubeMap);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texHDRmap);
-	programRectToCubemap.set_int("equirectangularMap", 0);
+	programEnvMapGeneration.set_int("equirectangularMap", 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
 	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
 	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texHDRenvMap, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texEnvMap, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		MVP = P * camHDRenv[i].get_view_matrix();
@@ -537,14 +537,14 @@ void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeM
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 
-	programRectToCubemap.del();
+	programEnvMapGeneration.del();
 	glDeleteTextures(1, &texHDRmap);
 	glDeleteFramebuffers(1, &FBO);
 	glDeleteRenderbuffers(1, &RBO);
 }
 
-void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
-	Shader programEnvToIrradianceMap("./shaders/cubemapVertex.shader", "./shaders/envToIrrandianceMapFragment.shader");
+void genIrradianceMap(const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms) {
+	Shader programIrradianceMapGeneration("./shaders/cubemapVertex.shader", "./shaders/irradianceMapGenerationFragment.shader");
 
 	GLuint FBO, RBO;
 	glGenFramebuffers(1, &FBO);
@@ -557,8 +557,8 @@ void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, HDR_IRR_RES, HDR_IRR_RES);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RBO);
 
-	glGenTextures(1, &texHDRirradianceMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texHDRirradianceMap);
+	glGenTextures(1, &texIrradianceMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texIrradianceMap);
 	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, HDR_IRR_RES, HDR_IRR_RES, 0, GL_RGB, GL_FLOAT, nullptr);
 	}
@@ -572,17 +572,17 @@ void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap
 		std::cout << "ERROR::FRAMEBUFFER::INCOMPLETE" << std::endl;
 	}
 
-	programEnvToIrradianceMap.use();
+	programIrradianceMapGeneration.use();
 	glBindVertexArray(VAOcubeMap);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texHDRenvMap);
-	programEnvToIrradianceMap.set_int("environmentMap", 0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texEnvMap);
+	programIrradianceMapGeneration.set_int("environmentMap", 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 
 	P = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
 	for (unsigned int i = 0; i < NB_CUBEMAP_FACES; ++i) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texHDRirradianceMap, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, texIrradianceMap, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		MVP = P * camHDRenv[i].get_view_matrix();
@@ -590,7 +590,7 @@ void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 
-	programEnvToIrradianceMap.del();
+	programIrradianceMapGeneration.del();
 	glDeleteFramebuffers(1, &FBO);
 	glDeleteRenderbuffers(1, &RBO);
 }

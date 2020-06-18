@@ -36,8 +36,8 @@ void computeVertTangents(float* vertices, float* to);
 size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO);
 void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, GLuint nb_attrib, GLuint stride, GLuint* attribSizes);
 void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3& NM);
-void genHDRenvMap(const char* path, GLuint& texHDRenvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
-void genHDRirradianceMap(const GLuint& texHDRenvMap, GLuint& texHDRirradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genEnvMap(const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genIrradianceMap(const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
 
 Window window;
 
