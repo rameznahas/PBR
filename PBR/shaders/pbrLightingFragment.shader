@@ -28,9 +28,12 @@ layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned of
 
 uniform Material material1;
 uniform samplerCube irradianceMap;
+uniform samplerCube preFilteredMap;
+uniform sampler2D brdfIntegrationMap;
 
 const float PI = 3.14159265359f;
 const vec3 gammaCorrection = vec3(1.0f / 2.2f);
+const float MAX_REFLECTION_LOD = 4.0f;
 
 //layout (location = 0) out vec3 color;
 //layout (location = 1) out vec3 bloomColor;
@@ -93,11 +96,19 @@ void main() {
 		L0 += (diffuse + specular) * radiance * NdotL;
 	}
 
-	vec3 irradiance = texture(irradianceMap, N).rgb;
-	vec3 kd = vec3(1.0f) - fRoughness(NdotV, F0);
+	vec3 ks = fRoughness(NdotV, F0);
+
+	vec3 kd = vec3(1.0f) - ks;
 	kd *= (1.0f - material1.metallic);
+	vec3 irradiance = texture(irradianceMap, N).rgb;
 	vec3 diffuse = kd * irradiance * material1.albedo;
-	vec3 ambient = diffuse * material1.ao;
+
+	vec3 R = reflect(-V, N);
+	vec3 preFilteredColor = textureLod(preFilteredMap, R, material1.roughness * MAX_REFLECTION_LOD).rgb;
+	vec2 brdf = texture(brdfIntegrationMap, vec2(NdotV, material1.roughness)).rg;
+	vec3 specular = preFilteredColor * (ks * brdf.x + brdf.y);
+
+	vec3 ambient = (diffuse + specular) * material1.ao;
 	/*color = ambient + L0;
 
 	float brightness = dot(color, vec3(0.2126f, 0.7152f, 0.0722f));

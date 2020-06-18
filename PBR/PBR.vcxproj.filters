@@ -66,10 +66,12 @@
     <None Include="shaders\bloomFragment.shader" />
     <None Include="shaders\toneMappingFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
-    <None Include="shaders\rectToCubemapFragment.shader" />
     <None Include="shaders\hdrSkyboxVertex.shader" />
     <None Include="shaders\hdrSkyboxFragment.shader" />
     <None Include="shaders\cubemapVertex.shader" />
-    <None Include="shaders\envToIrrandianceMapFragment.shader" />
+    <None Include="shaders\irradianceMapGenerationFragment.shader" />
+    <None Include="shaders\envMapGenerationFragment.shader" />
+    <None Include="shaders\preFilteredMapGenerationFragment.shader" />
+    <None Include="shaders\brdfIntegrationMapGenerationFragment.shader" />
   </ItemGroup>
 </Project>

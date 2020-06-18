@@ -10,15 +10,17 @@
 //#define FULLSCREEN
 #define SCREEN_GRAB
 
-#define CAM_SPEED 1.0f
+#define CAM_SPEED 2.0f
 #define NB_POINT_LIGHTS 4
 #define NB_CUBEMAP_FACES 6
 #define NB_SPHERE_ROWS 7
 #define NB_SPHERE_COLS 7
 #define NB_HDR_TEX 2
-#define NB_SCENES 5
-#define HDR_ENV_RES 1024
-#define HDR_IRR_RES 32
+#define NB_SCENES 6
+#define ENV_MAP_RES 4096
+#define IRR_MAP_RES 128
+#define PRE_FILTERED_ENV_MAP_RES 512
+#define BRDF_INT_MAP_RES 1024
 #define TEX_PER_MAT 3
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
@@ -38,6 +40,8 @@ void initVertexAttributes(GLuint& VAO, GLuint& VBO, GLfloat* data, GLuint size, 
 void setUBOtransforms(const glm::mat4& M, const glm::mat4& MVP, const glm::mat3& NM);
 void genEnvMap(const char* path, GLuint& texEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
 void genIrradianceMap(const GLuint& texEnvMap, GLuint& texIrradianceMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genPreFilteredEnvMap(const GLuint& texEnvMap, GLuint& texPreFilteredEnvMap, const GLuint& VAOcubeMap, const GLuint& UBOtransforms);
+void genBRDFintegrationMap(GLuint& texBRDFintegrationMap, const GLuint& VAOquad);
 
 Window window;
 
@@ -99,7 +103,7 @@ glm::vec3 lightColors(300.0f);
 glm::mat4 M, V, P, MVP;
 glm::mat3 NM;
 
-glm::vec3 sphereAlbedo(0.5f, 0.0f, 0.0f);
+glm::vec3 sphereAlbedo(0.5f, 0.5f, 0.5f);
 const float spacing = 2.5f;
 
 double delta_time = 0.0;
@@ -111,11 +115,12 @@ float exposure = 4.5f;
 unsigned int currentScene = 0;
 
 const char* scenePaths[NB_SCENES] = {
-	"./assets/HDR_maps/room/room.hdr",
-	"./assets/HDR_maps/barcelona_rooftops/barcelona_rooftops.hdr",
-	"./assets/HDR_maps/grand_canyon/grand_canyon.hdr",
-	"./assets/HDR_maps/snow/snow.hdr",
-	"./assets/HDR_maps/beach/beach.hdr"
+	"./assets/HDR_maps/circus_arena.hdr",
+	"./assets/HDR_maps/fireplace.hdr",
+	"./assets/HDR_maps/red_wall.hdr",
+	"./assets/HDR_maps/the_sky_is_on_fire.hdr",
+	"./assets/HDR_maps/urban_street.hdr",
+	"./assets/HDR_maps/winter_evening.hdr"
 };
 
 const char* texUniform[TEX_PER_MAT] = {
