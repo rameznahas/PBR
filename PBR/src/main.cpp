@@ -134,18 +134,16 @@ int main() {
 
 		if (textured) {
 			programPBRtexturedLighting.use();
-			for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
-				glActiveTexture(GL_TEXTURE3 + i);
-				glBindTexture(GL_TEXTURE_2D, texSphere[currentSphereTex][i]);
-				for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
-					for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
-						M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
-						MVP = P * V * M;
-						NM = glm::transpose(glm::inverse(glm::mat3(M)));
-						setUBOtransforms(M, MVP, NM);
-						glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
-					}
+			for (unsigned int i = 0; i < NB_TEX_SPHERE; ++i) {
+				for (unsigned int j = 0; j < TEX_PER_MAT; ++j) {
+					glActiveTexture(GL_TEXTURE3 + j);
+					glBindTexture(GL_TEXTURE_2D, texSphere[i][j]);
 				}
+				M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(i - xTrans, 0.0f, 0.0f));
+				MVP = P * V * M;
+				NM = glm::transpose(glm::inverse(glm::mat3(M)));
+				setUBOtransforms(M, MVP, NM);
+				glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
 			}
 		}
 		else {
@@ -275,10 +273,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) textured = !textured;
-	if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS) currentSphereTex = 0;
-	if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS) currentSphereTex = 1;
-	if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS) currentSphereTex = 2;
-	if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS) currentSphereTex = 3;
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 		currentScene = 0;
 		exposure = 0.5f;

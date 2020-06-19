@@ -7,7 +7,7 @@
 #include "Shader.h"
 #include "Model.h"
 
-//#define FULLSCREEN
+#define FULLSCREEN
 #define SCREEN_GRAB
 
 #define CAM_SPEED 2.0f
@@ -17,7 +17,7 @@
 #define NB_SPHERE_COLS 7
 #define NB_HDR_TEX 2
 #define NB_SCENES 6
-#define NB_TEX_SPHERE 4
+#define NB_TEX_SPHERE 5
 #define ENV_MAP_RES 4096
 #define IRR_MAP_RES 128
 #define PRE_FILTERED_ENV_MAP_RES 512
@@ -117,7 +117,6 @@ float angle_x = 0.0f;
 float angle_y = 0.0f;
 float exposure = 0.5f;
 unsigned int currentScene = 0;
-unsigned int currentSphereTex = 0;
 bool textured = false;
 
 const char* scenePaths[NB_SCENES] = {
@@ -144,6 +143,13 @@ const char* texLoc[NB_TEX_SPHERE][TEX_PER_MAT] = {
 		"./assets/textures/fabric/fabric_metallic.png",
 		"./assets/textures/fabric/fabric_rough.png",
 		"./assets/textures/fabric/fabric_ao.png"
+	},
+	{
+		"./assets/textures/leather/leather_albedo.png",
+		"./assets/textures/leather/leather_normal.png",
+		"./assets/textures/leather/leather_metallic.png",
+		"./assets/textures/leather/leather_rough.png",
+		"./assets/textures/leather/leather_ao.png"
 	},
 	{
 		"./assets/textures/lined_cement/lined_cement_albedo.png",
