@@ -40,9 +40,6 @@ const float PI = 3.14159265359f;
 const vec3 gammaCorrection = vec3(1.0f / 2.2f);
 const float MAX_REFLECTION_LOD = 4.0f;
 
-//layout (location = 0) out vec3 color;
-//layout (location = 1) out vec3 bloomColor;
-
 out vec4 color;
 
 float NDF(float NdotH, float a2);
@@ -114,10 +111,6 @@ void main() {
 	vec3 specular = preFilteredColor * (ks * brdf.x + brdf.y);
 
 	vec3 ambient = (diffuse + specular) * material1.ao;
-	/*color = ambient + L0;
-
-	float brightness = dot(color, vec3(0.2126f, 0.7152f, 0.0722f));
-	bloomColor = brightness > 5.0f ? color : vec3(0.0f);*/
 
 	vec3 HDRcolor = ambient + L0;
 	vec3 toneMapping = vec3(1.0f) - exp(-HDRcolor * exposure);

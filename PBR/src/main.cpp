@@ -13,12 +13,19 @@
 int main() {
 	if (!init()) return EXIT_FAILURE;
 
-	Shader programPBRlighting("./shaders/lightingVertex.shader", "./shaders/pbrLightingFragment.shader");
+	Shader programPBRlighting("./shaders/pbrLightingVertex.shader", "./shaders/pbrLightingFragment.shader");
+	Shader programPBRtexturedLighting("./shaders/pbrLightingVertex.shader", "./shaders/pbrTexturedLightingFragment.shader");
 	Shader programLight("./shaders/lightVertex.shader", "./shaders/lightFragment.shader");
 	Shader programHDRskybox("./shaders/hdrSkyboxVertex.shader", "./shaders/hdrSkyboxFragment.shader");
 
-	GLuint VAOsphere, VBOsphere, EBOsphere;
+	GLuint VAOsphere, VBOsphere, EBOsphere, texSphere[NB_TEX_SPHERE][TEX_PER_MAT];
 	size_t indexCount = initSphereVertices(VAOsphere, VBOsphere, EBOsphere);
+	for (unsigned int i = 0; i < NB_TEX_SPHERE; ++i) {
+		texSphere[i][0] = loadTexture(texLoc[i][0], true);
+		for (unsigned int j = 1; j < TEX_PER_MAT; ++j) {
+			texSphere[i][j] = loadTexture(texLoc[i][j], false);
+		}
+	}
 
 	GLuint VAOquad, VBOquad;
 	GLuint quadAttribSizes[2] = { 2, 2 };
@@ -85,6 +92,14 @@ int main() {
 	programPBRlighting.set_int("preFilteredMap", 1);
 	programPBRlighting.set_int("brdfIntegrationMap", 2);
 
+	programPBRtexturedLighting.use();
+	for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
+		programPBRtexturedLighting.set_int(texUniform[i], 3 + i);
+	}
+	programPBRtexturedLighting.set_int("irradianceMap", 0);
+	programPBRtexturedLighting.set_int("preFilteredMap", 1);
+	programPBRtexturedLighting.set_int("brdfIntegrationMap", 2);
+
 	programHDRskybox.use();
 	programHDRskybox.set_int("skybox", 0);
 
@@ -103,7 +118,6 @@ int main() {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		programPBRlighting.use();
 		glBindVertexArray(VAOsphere);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, texIrradianceMap[currentScene]);
@@ -118,15 +132,34 @@ int main() {
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 		V = camera.get_view_matrix();
 
-		for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
-			programPBRlighting.set_float("material1.metallic", (float)i / NB_SPHERE_ROWS);
-			for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
-				programPBRlighting.set_float("material1.roughness", glm::clamp((float)j / NB_SPHERE_COLS, 0.025f, 1.0f));
-				M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
-				MVP = P * V * M;
-				NM = glm::transpose(glm::inverse(glm::mat3(M)));
-				setUBOtransforms(M, MVP, NM);
-				glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
+		if (textured) {
+			programPBRtexturedLighting.use();
+			for (unsigned int i = 0; i < TEX_PER_MAT; ++i) {
+				glActiveTexture(GL_TEXTURE3 + i);
+				glBindTexture(GL_TEXTURE_2D, texSphere[currentSphereTex][i]);
+				for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
+					for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
+						M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
+						MVP = P * V * M;
+						NM = glm::transpose(glm::inverse(glm::mat3(M)));
+						setUBOtransforms(M, MVP, NM);
+						glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
+					}
+				}
+			}
+		}
+		else {
+			programPBRlighting.use();
+			for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
+				programPBRlighting.set_float("material1.metallic", (float)i / NB_SPHERE_ROWS);
+				for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
+					programPBRlighting.set_float("material1.roughness", glm::clamp((float)j / NB_SPHERE_COLS, 0.025f, 1.0f));
+					M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
+					MVP = P * V * M;
+					NM = glm::transpose(glm::inverse(glm::mat3(M)));
+					setUBOtransforms(M, MVP, NM);
+					glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
+				}
 			}
 		}
 
@@ -241,6 +274,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) textured = !textured;
+	if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS) currentSphereTex = 0;
+	if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS) currentSphereTex = 1;
+	if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS) currentSphereTex = 2;
+	if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS) currentSphereTex = 3;
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 		currentScene = 0;
 		exposure = 0.5f;
@@ -302,7 +340,7 @@ GLuint loadCubemap(std::vector<std::string>& paths) {
 	return cubemap;
 }
 
-GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection) {
+GLuint loadTexture(const char* path, bool gammaCorrection) {
 	GLuint texture;
 
 	int width, height, channels;
@@ -322,7 +360,6 @@ GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection) {
 		}
 
 		glGenTextures(1, &texture);
-		glActiveTexture(tex);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);

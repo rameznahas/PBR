@@ -62,9 +62,6 @@
     <None Include="shaders\lightFragment.shader" />
     <None Include="shaders\quadVertex.shader" />
     <None Include="shaders\pbrLightingFragment.shader" />
-    <None Include="shaders\lightingVertex.shader" />
-    <None Include="shaders\bloomFragment.shader" />
-    <None Include="shaders\toneMappingFragment.shader" />
     <None Include="shaders\lightVertex.shader" />
     <None Include="shaders\hdrSkyboxVertex.shader" />
     <None Include="shaders\hdrSkyboxFragment.shader" />
@@ -73,5 +70,7 @@
     <None Include="shaders\envMapGenerationFragment.shader" />
     <None Include="shaders\preFilteredMapGenerationFragment.shader" />
     <None Include="shaders\brdfIntegrationMapGenerationFragment.shader" />
+    <None Include="shaders\pbrTexturedLightingFragment.shader" />
+    <None Include="shaders\pbrLightingVertex.shader" />
   </ItemGroup>
 </Project>

@@ -17,11 +17,12 @@
 #define NB_SPHERE_COLS 7
 #define NB_HDR_TEX 2
 #define NB_SCENES 6
+#define NB_TEX_SPHERE 4
 #define ENV_MAP_RES 4096
 #define IRR_MAP_RES 128
 #define PRE_FILTERED_ENV_MAP_RES 512
 #define BRDF_INT_MAP_RES 1024
-#define TEX_PER_MAT 3
+#define TEX_PER_MAT 5
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
 #define WORLD_FWD glm::vec3(0.0f, 0.0f, 1.0f)
@@ -32,7 +33,7 @@ void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 GLuint loadCubemap(std::vector<std::string>& paths);
-GLuint loadTexture(const char* path, GLenum tex, bool gammaCorrection);
+GLuint loadTexture(const char* path, bool gammaCorrection);
 GLuint loadHDRmap(const char* path);
 void computeVertTangents(float* vertices, float* to);
 size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO);
@@ -116,6 +117,8 @@ float angle_x = 0.0f;
 float angle_y = 0.0f;
 float exposure = 0.5f;
 unsigned int currentScene = 0;
+unsigned int currentSphereTex = 0;
+bool textured = false;
 
 const char* scenePaths[NB_SCENES] = {
 	"./assets/HDR_maps/circus_arena.hdr",
@@ -127,21 +130,42 @@ const char* scenePaths[NB_SCENES] = {
 };
 
 const char* texUniform[TEX_PER_MAT] = {
-	"material1.diffuseMap",
-	"material1.specularMap",
-	"material1.normalMap"
+	"material1.albedo",
+	"material1.normal",
+	"material1.metallic",
+	"material1.roughness",
+	"material1.ao"
 };
 
-const char* roomTexLoc[TEX_PER_MAT] = {
-	"./assets/textures/old_planks/old_planks_diff_2k.png",
-	"./assets/textures/old_planks/old_planks_spec_2k.png",
-	"./assets/textures/old_planks/old_planks_nor_2k.png"
-};
-
-const char* cubeTexLoc[TEX_PER_MAT] = {
-	"./assets/textures/concrete/concrete_diff_2k.png",
-	"./assets/textures/concrete/concrete_spec_2k.png",
-	"./assets/textures/concrete/concrete_nor_2k.png"
+const char* texLoc[NB_TEX_SPHERE][TEX_PER_MAT] = {
+	{
+		"./assets/textures/fabric/fabric_albedo.png",
+		"./assets/textures/fabric/fabric_normal.png",
+		"./assets/textures/fabric/fabric_metallic.png",
+		"./assets/textures/fabric/fabric_rough.png",
+		"./assets/textures/fabric/fabric_ao.png"
+	},
+	{
+		"./assets/textures/lined_cement/lined_cement_albedo.png",
+		"./assets/textures/lined_cement/lined_cement_normal.png",
+		"./assets/textures/lined_cement/lined_cement_metallic.png",
+		"./assets/textures/lined_cement/lined_cement_rough.png",
+		"./assets/textures/lined_cement/lined_cement_ao.png"
+	},
+	{
+		"./assets/textures/rusty_metal/rusty_metal_albedo.png",
+		"./assets/textures/rusty_metal/rusty_metal_normal.png",
+		"./assets/textures/rusty_metal/rusty_metal_metallic.png",
+		"./assets/textures/rusty_metal/rusty_metal_rough.png",
+		"./assets/textures/rusty_metal/rusty_metal_ao.png"
+	},
+	{
+		"./assets/textures/scuffed_aluminium/scuffed_aluminium_albedo.png",
+		"./assets/textures/scuffed_aluminium/scuffed_aluminium_normal.png",
+		"./assets/textures/scuffed_aluminium/scuffed_aluminium_metallic.png",
+		"./assets/textures/scuffed_aluminium/scuffed_aluminium_rough.png",
+		"./assets/textures/scuffed_aluminium/scuffed_aluminium_ao.png"
+	}
 };
 
 GLfloat cubeMapVertices[] = {
