@@ -28,11 +28,16 @@ int main() {
 	GLuint cubeAttribeSize = 3;
 	initVertexAttributes(VAOcubeMap, VBOcubeMap, cubeMapVertices, sizeof(cubeMapVertices), 1, 3 * sizeof(GLfloat), &cubeAttribeSize);
 
-	GLuint UBOtransforms, UBOlighting;
+	GLuint UBOtransforms, UBOlighting, UBOtoneMapping;
 	glGenBuffers(1, &UBOtransforms);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 	glBufferData(GL_UNIFORM_BUFFER, 11 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, UBOtransforms);
+
+	glGenBuffers(1, &UBOtoneMapping);
+	glBindBuffer(GL_UNIFORM_BUFFER, UBOtoneMapping);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, UBOtoneMapping);
 
 	glGenBuffers(1, &UBOlighting);
 	glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
@@ -108,6 +113,8 @@ int main() {
 		glBindTexture(GL_TEXTURE_2D, texBRDFintegrationMap[currentScene]);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOlighting);
 		glBufferSubData(GL_UNIFORM_BUFFER, viewPosOffset, sizeof(glm::vec3), &camera.position[0]);
+		glBindBuffer(GL_UNIFORM_BUFFER, UBOtoneMapping);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(float), &exposure);
 		glBindBuffer(GL_UNIFORM_BUFFER, UBOtransforms);
 		V = camera.get_view_matrix();
 
@@ -234,22 +241,29 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) currentScene = 0;
-	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) currentScene = 1;
-	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) currentScene = 2;
-	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) currentScene = 3;
-	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) currentScene = 4;
-	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) currentScene = 5;
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		currentScene = 0;
+		exposure = 0.5f;
 	}
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-		exposure += 0.5f;
-		std::cout << exposure << std::endl;
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		currentScene = 1;
+		exposure = 0.25f;
 	}
-	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-		exposure -= 0.5f;
-		std::cout << exposure << std::endl;
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+		currentScene = 2;
+		exposure = 1.0f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
+		currentScene = 3;
+		exposure = 0.25f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) {
+		currentScene = 4;
+		exposure = 1.25f;
+	}
+	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) {
+		currentScene = 5;
+		exposure = 0.75f;
 	}
 }
 

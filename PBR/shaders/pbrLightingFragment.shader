@@ -23,7 +23,12 @@ in VS_OUT {
 // size: 144 bytes
 layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned offset
 	PointLight pointLights[NB_POINT_LIGHTS];		// 128 bytes		// 0
-	vec3 wViewPos;									//  14 bytes		// 128
+	vec3 wViewPos;									//  16 bytes		// 128
+};
+
+// size: 4 bytes
+layout (std140, binding = 2) uniform toneMapping {	// base alignment	// aligned offset
+	float exposure;									// 4 bytes			// 0 
 };
 
 uniform Material material1;
@@ -115,7 +120,7 @@ void main() {
 	bloomColor = brightness > 5.0f ? color : vec3(0.0f);*/
 
 	vec3 HDRcolor = ambient + L0;
-	vec3 toneMapping = HDRcolor / (HDRcolor + vec3(1.0f));
+	vec3 toneMapping = vec3(1.0f) - exp(-HDRcolor * exposure);
 
 	color = vec4(pow(toneMapping, gammaCorrection), 1.0f);
 }

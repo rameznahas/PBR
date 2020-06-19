@@ -114,7 +114,7 @@ double last_frame = 0.0f;
 double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
-float exposure = 4.5f;
+float exposure = 0.5f;
 unsigned int currentScene = 0;
 
 const char* scenePaths[NB_SCENES] = {
