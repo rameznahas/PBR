@@ -272,6 +272,8 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.up, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.up, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) textured = !textured;
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 		currentScene = 0;
