@@ -18,7 +18,7 @@ Learn the Vulkan API through PBR implementation using Vulkan.
 
 ## Results
 
-Below are some screenshots of my PBR implementation, using 6 different HDRI environments for Image Based Lightings and 4 points lights.
+Below are some screenshots of my PBR implementation, using 6 different HDRI environments for Image Based Lighting and 4 points lights.
 The non-textured spheres in the 7x7 grid layout increase in roughness when going right, and increase in metalness when going up.
 
 <img src="Screenshots/overall1.png" />
