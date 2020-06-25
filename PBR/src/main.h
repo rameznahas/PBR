@@ -7,8 +7,21 @@
 #include "Shader.h"
 #include "Model.h"
 
-#define FULLSCREEN
-#define SCREEN_GRAB
+#define DEBUGGING
+//#define FULLSCREEN
+//#define SCREEN_GRAB
+
+#ifdef DEBUGGING
+	#define ENV_MAP_RES 1024
+	#define IRR_MAP_RES 32
+	#define PRE_FILTERED_ENV_MAP_RES 128
+	#define BRDF_INT_MAP_RES 256
+#else
+	#define ENV_MAP_RES 4096
+	#define IRR_MAP_RES 128
+	#define PRE_FILTERED_ENV_MAP_RES 512
+	#define BRDF_INT_MAP_RES 1024
+#endif
 
 #define CAM_SPEED 2.0f
 #define NB_POINT_LIGHTS 4
@@ -18,10 +31,6 @@
 #define NB_HDR_TEX 2
 #define NB_SCENES 6
 #define NB_TEX_SPHERE 5
-#define ENV_MAP_RES 4096
-#define IRR_MAP_RES 128
-#define PRE_FILTERED_ENV_MAP_RES 512
-#define BRDF_INT_MAP_RES 1024
 #define TEX_PER_MAT 5
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
