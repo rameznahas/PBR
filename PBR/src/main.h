@@ -31,7 +31,7 @@
 #define NB_HDR_TEX 2
 #define NB_SCENES 6
 #define NB_TEX_SPHERE 5
-#define TEX_PER_MAT 5
+#define TEX_PER_MAT 6
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
 #define WORLD_FWD glm::vec3(0.0f, 0.0f, 1.0f)
@@ -127,6 +127,8 @@ float angle_y = 0.0f;
 float exposure = 0.5f;
 unsigned int currentScene = 0;
 bool textured = false;
+float heightScales[NB_TEX_SPHERE] = { 0.01f,0.02f,0.05f,0.01f,0.05f };
+bool parallax = false;
 
 const char* scenePaths[NB_SCENES] = {
 	"./assets/HDR_maps/circus_arena.hdr",
@@ -142,44 +144,50 @@ const char* texUniform[TEX_PER_MAT] = {
 	"material1.normal",
 	"material1.metallic",
 	"material1.roughness",
-	"material1.ao"
+	"material1.ao",
+	"material1.height"
 };
 
 const char* texLoc[NB_TEX_SPHERE][TEX_PER_MAT] = {
 	{
-		"./assets/textures/fabric/fabric_albedo.png",
-		"./assets/textures/fabric/fabric_normal.png",
-		"./assets/textures/fabric/fabric_metallic.png",
-		"./assets/textures/fabric/fabric_rough.png",
-		"./assets/textures/fabric/fabric_ao.png"
+		"./assets/textures/texture1/d.png",
+		"./assets/textures/texture1/n.png",
+		"./assets/textures/texture1/m.png",
+		"./assets/textures/texture1/r.png",
+		"./assets/textures/texture1/a.png",
+		"./assets/textures/texture1/h.png"
 	},
 	{
-		"./assets/textures/leather/leather_albedo.png",
-		"./assets/textures/leather/leather_normal.png",
-		"./assets/textures/leather/leather_metallic.png",
-		"./assets/textures/leather/leather_rough.png",
-		"./assets/textures/leather/leather_ao.png"
+		"./assets/textures/texture2/d.png",
+		"./assets/textures/texture2/n.png",
+		"./assets/textures/texture2/m.png",
+		"./assets/textures/texture2/r.png",
+		"./assets/textures/texture2/a.png",
+		"./assets/textures/texture2/h.png"
 	},
 	{
-		"./assets/textures/lined_cement/lined_cement_albedo.png",
-		"./assets/textures/lined_cement/lined_cement_normal.png",
-		"./assets/textures/lined_cement/lined_cement_metallic.png",
-		"./assets/textures/lined_cement/lined_cement_rough.png",
-		"./assets/textures/lined_cement/lined_cement_ao.png"
+		"./assets/textures/texture3/d.png",
+		"./assets/textures/texture3/n.png",
+		"./assets/textures/texture3/m.png",
+		"./assets/textures/texture3/r.png",
+		"./assets/textures/texture3/a.png",
+		"./assets/textures/texture3/h.png"
 	},
 	{
-		"./assets/textures/rusty_metal/rusty_metal_albedo.png",
-		"./assets/textures/rusty_metal/rusty_metal_normal.png",
-		"./assets/textures/rusty_metal/rusty_metal_metallic.png",
-		"./assets/textures/rusty_metal/rusty_metal_rough.png",
-		"./assets/textures/rusty_metal/rusty_metal_ao.png"
+		"./assets/textures/texture4/d.png",
+		"./assets/textures/texture4/n.png",
+		"./assets/textures/texture4/m.png",
+		"./assets/textures/texture4/r.png",
+		"./assets/textures/texture4/a.png",
+		"./assets/textures/texture4/h.png"
 	},
 	{
-		"./assets/textures/scuffed_aluminium/scuffed_aluminium_albedo.png",
-		"./assets/textures/scuffed_aluminium/scuffed_aluminium_normal.png",
-		"./assets/textures/scuffed_aluminium/scuffed_aluminium_metallic.png",
-		"./assets/textures/scuffed_aluminium/scuffed_aluminium_rough.png",
-		"./assets/textures/scuffed_aluminium/scuffed_aluminium_ao.png"
+		"./assets/textures/texture5/d.png",
+		"./assets/textures/texture5/n.png",
+		"./assets/textures/texture5/m.png",
+		"./assets/textures/texture5/r.png",
+		"./assets/textures/texture5/a.png",
+		"./assets/textures/texture5/h.png"
 	}
 };
 

@@ -13,12 +13,15 @@ struct Material {
 	sampler2D metallic;
 	sampler2D roughness;
 	sampler2D ao;
+	sampler2D height;
 };
 
 in VS_OUT {
 	vec3 wPos;
 	vec3 wNorm;
 	vec2 uv;
+	mat3 TBN;
+	mat3 invTBN;
 } fsIn;
 
 // size: 144 bytes
@@ -36,10 +39,14 @@ uniform Material material1;
 uniform samplerCube irradianceMap;
 uniform samplerCube preFilteredMap;
 uniform sampler2D brdfIntegrationMap;
+uniform float heightScale;
+uniform bool parallax;
 
 const float PI = 3.14159265359f;
 const vec3 gammaCorrection = vec3(1.0f / 2.2f);
 const float MAX_REFLECTION_LOD = 4.0f;
+const float minLayers = 256.0f;
+const float maxLayers = 1024.0f;
 
 out vec4 color;
 
@@ -48,14 +55,16 @@ vec3 F(float VdotH, vec3 F0);
 vec3 fRoughness(float VdotH, vec3 F0, float roughness);
 float G(vec3 N, vec3 L, vec3 V, float k);
 float geometrySchlickGGX(float NdotX, float k);
-vec3 getWorldNorm();
+vec2 parallaxOffset(vec3 tViewDir);
 
 void main() {
-	vec3 albedo = texture(material1.albedo, fsIn.uv).rgb;
-	vec3 N = getWorldNorm();
-	float metallic = texture(material1.metallic, fsIn.uv).r;
-	float roughness = texture(material1.roughness, fsIn.uv).r;
-	float ao = texture(material1.ao, fsIn.uv).r;
+	vec2 uv = parallax ? parallaxOffset(normalize(fsIn.invTBN * (wViewPos - fsIn.wPos))) : fsIn.uv;
+
+	vec3 albedo = texture(material1.albedo, uv).rgb;
+	vec3 N = normalize(fsIn.TBN * (texture(material1.normal, uv).xyz * 2.0f - 1.0f));
+	float metallic = texture(material1.metallic, uv).r;
+	float roughness = texture(material1.roughness, uv).r;
+	float ao = texture(material1.ao, uv).r;
 
 	vec3 V = normalize(wViewPos - fsIn.wPos);
 	float NdotV = max(dot(N, V), 0.0f);
@@ -152,18 +161,43 @@ float geometrySchlickGGX(float NdotX, float k) {
 	return NdotX / (NdotX * (1.0f - k) + k);
 }
 
-vec3 getWorldNorm() {
-	vec3 tNorm = texture(material1.normal, fsIn.uv).xyz * 2.0f - 1.0f;
+vec2 parallaxOffset(vec3 tViewDir) {
+	float nbLayers = mix(maxLayers, minLayers, max(dot(vec3(0.0, 0.0, 1.0), tViewDir), 0.0));
+	float layerDepth = 1.0f / nbLayers;
 
-	vec3 Q1 = dFdx(fsIn.wPos);
-	vec3 Q2 = dFdy(fsIn.wPos);
-	vec2 st1 = dFdx(fsIn.uv);
-	vec2 st2 = dFdy(fsIn.uv);
+	vec2 p = tViewDir.xy / tViewDir.z * heightScale;
+	vec2 currentUV = fsIn.uv;
+	float currentLayerDepth = 0.0f;
+	float currentDepth = 1.0f - texture(material1.height, currentUV).r;
+	vec2 deltaUV = p / nbLayers;
 
-	vec3 N = normalize(fsIn.wNorm);
-	vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
-	vec3 B = -normalize(cross(N, T));
-	mat3 TBN = mat3(T, B, N);
+	while (currentLayerDepth < currentDepth) {
+		currentUV -= deltaUV;
+		currentDepth = 1.0f - texture(material1.height, currentUV).r;
+		currentLayerDepth += layerDepth;
+	}
 
-	return normalize(TBN * tNorm);
+	vec2 prevUV = currentUV + deltaUV;
+	float afterDepth = currentDepth - currentLayerDepth;
+	float beforeDepth = 1.0f - texture(material1.height, prevUV).r - currentLayerDepth + layerDepth;
+
+	float weight = afterDepth / (afterDepth - beforeDepth);
+
+	return mix(currentUV, prevUV, weight);
 }
+
+//vec3 getWorldNorm(mat3 TBN) {
+//	vec3 tNorm = texture(material1.normal, fsIn.uv).xyz * 2.0f - 1.0f;
+//
+//	/*vec3 Q1 = dFdx(fsIn.wPos);
+//	vec3 Q2 = dFdy(fsIn.wPos);
+//	vec2 st1 = dFdx(fsIn.uv);
+//	vec2 st2 = dFdy(fsIn.uv);
+//
+//	vec3 N = normalize(fsIn.wNorm);
+//	vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+//	vec3 B = -normalize(cross(N, T));
+//	mat3 TBN = mat3(T, B, N);*/
+//
+//	return normalize(TBN * tNorm);
+//}

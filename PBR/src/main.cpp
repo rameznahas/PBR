@@ -134,7 +134,10 @@ int main() {
 
 		if (textured) {
 			programPBRtexturedLighting.use();
+			programPBRtexturedLighting.set_int("parallax", parallax);
 			for (unsigned int i = 0; i < NB_TEX_SPHERE; ++i) {
+				programPBRtexturedLighting.set_float("heightScale", heightScales[i]);
+
 				for (unsigned int j = 0; j < TEX_PER_MAT; ++j) {
 					glActiveTexture(GL_TEXTURE3 + j);
 					glBindTexture(GL_TEXTURE_2D, texSphere[i][j]);
@@ -275,6 +278,14 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.up, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.up, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) textured = !textured;
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+		parallax = !parallax;
+		
+		if (parallax)
+			std::cout << "parallax on" << std::endl;
+		else
+			std::cout << "parallax off" << std::endl;
+	}
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 		currentScene = 0;
 		exposure = 0.5f;
@@ -462,6 +473,7 @@ size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 
 	std::vector<glm::vec3> positions;
 	std::vector<glm::vec3> normals;
+	std::vector<glm::vec3> tangents;
 	std::vector<glm::vec2> uvs;
 	std::vector<unsigned int> indices;
 
@@ -473,12 +485,22 @@ size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 			float xSegment = (float)x / X_SEGMENTS;
 
 			float a = 2.0f * PI * xSegment;
-			float xPos = cosf(a) * sinf(b);
-			float yPos = cosf(b);
-			float zPos = sinf(a) * sinf(b);
+			
+			glm::vec3 position(
+				cosf(a) * sinf(b),
+				cosf(b),
+				sinf(a) * sinf(b)
+			);
+			
+			glm::vec3 tangent(
+				-sinf(a),
+				0.0f,
+				cosf(a)
+			);
 
-			positions.push_back(glm::vec3(xPos, yPos, zPos));
-			normals.push_back(glm::vec3(xPos, yPos, zPos));
+			positions.push_back(position);
+			normals.push_back(position);
+			tangents.push_back(tangent);
 			uvs.push_back(glm::vec2(xSegment, ySegment));
 		}
 	}
@@ -507,6 +529,9 @@ size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 		data.push_back(normals[i].x);
 		data.push_back(normals[i].y);
 		data.push_back(normals[i].z);
+		data.push_back(tangents[i].x);
+		data.push_back(tangents[i].y);
+		data.push_back(tangents[i].z);
 		data.push_back(uvs[i].x);
 		data.push_back(uvs[i].y);
 	}
@@ -517,13 +542,15 @@ size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
-	unsigned int stride = 8 * sizeof(float);
+	unsigned int stride = 11 * sizeof(float);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(9 * sizeof(float)));
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
 
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);

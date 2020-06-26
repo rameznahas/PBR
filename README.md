@@ -21,12 +21,16 @@ Learn the Vulkan API through PBR implementation using Vulkan.
 Below are some screenshots of my PBR implementation, using 6 different HDRI environments for Image Based Lighting and 4 points lights.
 The non-textured spheres in the 7x7 grid layout increase in roughness when going right, and increase in metalness when going up.
 
+### Colored Spheres
+#### Overall
 <img src="Screenshots/overall1.png" />
 <img src="Screenshots/overall2.png" />
 <img src="Screenshots/overall3.png" />
 <img src="Screenshots/overall4.png" />
 <img src="Screenshots/overall5.png" />
 <img src="Screenshots/overall6.png" />
+
+#### Closeup
 <img src="Screenshots/closeup1.png" />
 <img src="Screenshots/closeup2.png" />
 <img src="Screenshots/closeup3.png" />
@@ -39,14 +43,21 @@ The non-textured spheres in the 7x7 grid layout increase in roughness when going
 <img src="Screenshots/single6.png" />
 <img src="Screenshots/single7.png" />
 
-Below are some textured spheres:
+### Textured Spheres
+#### Overall
+<img src="Screenshots/textured-overall1.png" />
+<img src="Screenshots/textured-overall2.png" />
+<img src="Screenshots/textured-overall3.png" />
+<img src="Screenshots/textured-overall4.png" />
+<img src="Screenshots/textured-overall5.png" />
+<img src="Screenshots/textured-overall6.png" />
 
-<img src="Screenshots/textured1.png" />
-<img src="Screenshots/textured2.png" />
-<img src="Screenshots/textured3.png" />
-<img src="Screenshots/textured4.png" />
-<img src="Screenshots/textured5.png" />
-<img src="Screenshots/textured6.png" />
+#### Closeup
+<img src="Screenshots/textured-closeup1.png" />
+<img src="Screenshots/textured-closeup2.png" />
+<img src="Screenshots/textured-closeup3.png" />
+<img src="Screenshots/textured-closeup4.png" />
+<img src="Screenshots/textured-closeup5.png" />
 
 
 

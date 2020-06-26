@@ -18,6 +18,8 @@ in VS_OUT {
 	vec3 wPos;
 	vec3 wNorm;
 	vec2 uv;
+	mat3 TBN;
+	mat3 invTBN;
 } fsIn;
 
 // size: 144 bytes
