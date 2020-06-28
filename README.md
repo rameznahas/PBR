@@ -19,7 +19,7 @@ Before getting to the PBR implementation, understanding and implementing the bas
 
 ## Next Steps
 
-Learn the Vulkan API through PBR implementation using Vulkan.
+Learn the Vulkan API by re-implementing PBR. This time the focus will be on the API rather than PBR.
 
 ## Results
 
