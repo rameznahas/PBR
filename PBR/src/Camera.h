@@ -10,6 +10,7 @@ public:
 	void walk_around(glm::vec3 dir, double delta_time);
 	void look_around(double xpos, double ypos);
 	void zoom(double yoffset);
+	void moveTo(glm::vec3 pos, glm::vec3 fwd);
 	glm::mat4 get_view_matrix();
 
 	glm::vec3 position;

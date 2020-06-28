@@ -11,7 +11,6 @@ Camera::Camera(glm::vec3 pos, glm::vec3 fwd, glm::vec3 world_up, float fov)
 	update_axes(fwd);
 	pitch = glm::degrees(asin(forward.y));
 	yaw = glm::degrees(atan2(forward.z, forward.x));
-
 }
 
 Camera& Camera::operator=(const Camera& rhs) {
@@ -69,6 +68,13 @@ void Camera::zoom(double yoffset) {
 
 	if (fov < 1.0f) fov = 1.0f;
 	if (fov > 80.0f) fov = 80.0f;
+}
+
+void Camera::moveTo(glm::vec3 pos, glm::vec3 fwd) {
+	position = pos;
+	update_axes(fwd);
+	pitch = glm::degrees(asin(forward.y));
+	yaw = glm::degrees(atan2(forward.z, forward.x));
 }
 
 glm::mat4 Camera::get_view_matrix() {
