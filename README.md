@@ -12,6 +12,11 @@ Using OpenGL as my graphics API of choice was a deliberate decision. The goal wa
 computer graphics skills, and I felt OpenGL was well suited for that. I did not want to be distracted by the strict programming 
 and usage rules of lower level graphics API. 
 
+### Time
+
+The PBR implementation from scratch took about 20 hours.
+Before getting to the PBR implementation, understanding and implementing the basic and more advanced computer graphics topics took about 4-5 weeks. 
+
 ## Next Steps
 
 Learn the Vulkan API through PBR implementation using Vulkan.
@@ -23,41 +28,191 @@ The non-textured spheres in the 7x7 grid layout increase in roughness when going
 
 ### Colored Spheres
 #### Overall
-<img src="Screenshots/overall1.png" />
-<img src="Screenshots/overall2.png" />
-<img src="Screenshots/overall3.png" />
-<img src="Screenshots/overall4.png" />
-<img src="Screenshots/overall5.png" />
-<img src="Screenshots/overall6.png" />
+<img src="Screenshots/colored/overall/overall1.png" />
+<img src="Screenshots/colored/overall/overall2.png" />
+<img src="Screenshots/colored/overall/overall3.png" />
+<img src="Screenshots/colored/overall/overall4.png" />
+<img src="Screenshots/colored/overall/overall5.png" />
+<img src="Screenshots/colored/overall/overall6.png" />
+
+#### Overall, Left Side
+<img src="Screenshots/colored/overall_left/overall_left1.png" />
+<img src="Screenshots/colored/overall_left/overall_left2.png" />
+<img src="Screenshots/colored/overall_left/overall_left3.png" />
+<img src="Screenshots/colored/overall_left/overall_left4.png" />
+<img src="Screenshots/colored/overall_left/overall_left5.png" />
+<img src="Screenshots/colored/overall_left/overall_left6.png" />
+
+#### Overall, Right Side
+<img src="Screenshots/colored/overall_right/overall_right1.png" />
+<img src="Screenshots/colored/overall_right/overall_right2.png" />
+<img src="Screenshots/colored/overall_right/overall_right3.png" />
+<img src="Screenshots/colored/overall_right/overall_right4.png" />
+<img src="Screenshots/colored/overall_right/overall_right5.png" />
+<img src="Screenshots/colored/overall_right/overall_right6.png" />
 
 #### Closeup
-<img src="Screenshots/closeup1.png" />
-<img src="Screenshots/closeup2.png" />
-<img src="Screenshots/closeup3.png" />
-<img src="Screenshots/closeup4.png" />
-<img src="Screenshots/single1.png" />
-<img src="Screenshots/single2.png" />
-<img src="Screenshots/single3.png" />
-<img src="Screenshots/single4.png" />
-<img src="Screenshots/single5.png" />
-<img src="Screenshots/single6.png" />
-<img src="Screenshots/single7.png" />
+<img src="Screenshots/colored/closeup/closeup1.png" />
+<img src="Screenshots/colored/closeup/closeup2.png" />
+<img src="Screenshots/colored/closeup/closeup3.png" />
+<img src="Screenshots/colored/closeup/closeup4.png" />
+<img src="Screenshots/colored/closeup/closeup5.png" />
+<img src="Screenshots/colored/closeup/closeup6.png" />
+<img src="Screenshots/colored/closeup/closeup7.png" />
+<img src="Screenshots/colored/closeup/closeup8.png" />
+<img src="Screenshots/colored/closeup/closeup9.png" />
+<img src="Screenshots/colored/closeup/closeup10.png" />
+<img src="Screenshots/colored/closeup/closeup11.png" />
+<img src="Screenshots/colored/closeup/closeup12.png" />
+<img src="Screenshots/colored/closeup/closeup13.png" />
+<img src="Screenshots/colored/closeup/closeup14.png" />
+<img src="Screenshots/colored/closeup/closeup15.png" />
+<img src="Screenshots/colored/closeup/closeup16.png" />
+<img src="Screenshots/colored/closeup/closeup17.png" />
+<img src="Screenshots/colored/closeup/closeup18.png" />
+<img src="Screenshots/colored/closeup/closeup19.png" />
+<img src="Screenshots/colored/closeup/closeup20.png" />
+<img src="Screenshots/colored/closeup/closeup21.png" />
+<img src="Screenshots/colored/closeup/closeup22.png" />
+<img src="Screenshots/colored/closeup/closeup23.png" />
+<img src="Screenshots/colored/closeup/closeup24.png" />
+<img src="Screenshots/colored/closeup/closeup25.png" />
+<img src="Screenshots/colored/closeup/closeup26.png" />
+<img src="Screenshots/colored/closeup/closeup27.png" />
+<img src="Screenshots/colored/closeup/closeup28.png" />
+<img src="Screenshots/colored/closeup/closeup29.png" />
+<img src="Screenshots/colored/closeup/closeup30.png" />
+<img src="Screenshots/colored/closeup/closeup31.png" />
+<img src="Screenshots/colored/closeup/closeup32.png" />
+<img src="Screenshots/colored/closeup/closeup33.png" />
+<img src="Screenshots/colored/closeup/closeup34.png" />
+<img src="Screenshots/colored/closeup/closeup35.png" />
+<img src="Screenshots/colored/closeup/closeup36.png" />
+<img src="Screenshots/colored/closeup/closeup37.png" />
+<img src="Screenshots/colored/closeup/closeup38.png" />
+<img src="Screenshots/colored/closeup/closeup39.png" />
+<img src="Screenshots/colored/closeup/closeup40.png" />
+<img src="Screenshots/colored/closeup/closeup41.png" />
+<img src="Screenshots/colored/closeup/closeup42.png" />
+<img src="Screenshots/colored/closeup/closeup43.png" />
+<img src="Screenshots/colored/closeup/closeup44.png" />
+<img src="Screenshots/colored/closeup/closeup45.png" />
+<img src="Screenshots/colored/closeup/closeup46.png" />
+<img src="Screenshots/colored/closeup/closeup47.png" />
+<img src="Screenshots/colored/closeup/closeup48.png" />
+<img src="Screenshots/colored/closeup/closeup49.png" />
+<img src="Screenshots/colored/closeup/closeup50.png" />
+<img src="Screenshots/colored/closeup/closeup51.png" />
+<img src="Screenshots/colored/closeup/closeup52.png" />
+<img src="Screenshots/colored/closeup/closeup53.png" />
+<img src="Screenshots/colored/closeup/closeup54.png" />
+<img src="Screenshots/colored/closeup/closeup55.png" />
+<img src="Screenshots/colored/closeup/closeup56.png" />
+<img src="Screenshots/colored/closeup/closeup57.png" />
+<img src="Screenshots/colored/closeup/closeup58.png" />
+<img src="Screenshots/colored/closeup/closeup59.png" />
+<img src="Screenshots/colored/closeup/closeup60.png" />
+
+#### Singles
+<img src="Screenshots/colored/single/single1.png" />
+<img src="Screenshots/colored/single/single2.png" />
+<img src="Screenshots/colored/single/single3.png" />
+<img src="Screenshots/colored/single/single4.png" />
+<img src="Screenshots/colored/single/single5.png" />
+<img src="Screenshots/colored/single/single6.png" />
+<img src="Screenshots/colored/single/single7.png" />
+<img src="Screenshots/colored/single/single8.png" />
+<img src="Screenshots/colored/single/single9.png" />
+<img src="Screenshots/colored/single/single10.png" />
+<img src="Screenshots/colored/single/single11.png" />
+<img src="Screenshots/colored/single/single12.png" />
+<img src="Screenshots/colored/single/single13.png" />
+<img src="Screenshots/colored/single/single14.png" />
+<img src="Screenshots/colored/single/single15.png" />
+<img src="Screenshots/colored/single/single16.png" />
+<img src="Screenshots/colored/single/single17.png" />
+<img src="Screenshots/colored/single/single18.png" />
+<img src="Screenshots/colored/single/single19.png" />
+<img src="Screenshots/colored/single/single20.png" />
+<img src="Screenshots/colored/single/single21.png" />
+<img src="Screenshots/colored/single/single22.png" />
+<img src="Screenshots/colored/single/single23.png" />
+<img src="Screenshots/colored/single/single24.png" />
+<img src="Screenshots/colored/single/single25.png" />
+<img src="Screenshots/colored/single/single26.png" />
+<img src="Screenshots/colored/single/single27.png" />
+<img src="Screenshots/colored/single/single28.png" />
+<img src="Screenshots/colored/single/single29.png" />
+<img src="Screenshots/colored/single/single30.png" />
+<img src="Screenshots/colored/single/single31.png" />
+<img src="Screenshots/colored/single/single32.png" />
+<img src="Screenshots/colored/single/single33.png" />
+<img src="Screenshots/colored/single/single34.png" />
+<img src="Screenshots/colored/single/single35.png" />
+<img src="Screenshots/colored/single/single36.png" />
+<img src="Screenshots/colored/single/single37.png" />
+<img src="Screenshots/colored/single/single38.png" />
+<img src="Screenshots/colored/single/single39.png" />
+<img src="Screenshots/colored/single/single40.png" />
+<img src="Screenshots/colored/single/single41.png" />
+<img src="Screenshots/colored/single/single42.png" />
 
 ### Textured Spheres
 #### Overall
-<img src="Screenshots/textured-overall1.png" />
-<img src="Screenshots/textured-overall2.png" />
-<img src="Screenshots/textured-overall3.png" />
-<img src="Screenshots/textured-overall4.png" />
-<img src="Screenshots/textured-overall5.png" />
-<img src="Screenshots/textured-overall6.png" />
+<img src="Screenshots/textured/overall/overall1.png" />
+<img src="Screenshots/textured/overall/overall2.png" />
+<img src="Screenshots/textured/overall/overall3.png" />
+<img src="Screenshots/textured/overall/overall4.png" />
+<img src="Screenshots/textured/overall/overall5.png" />
+<img src="Screenshots/textured/overall/overall6.png" />
+
+#### Overall, Left Side
+<img src="Screenshots/textured/overall_left/overall_left1.png" />
+<img src="Screenshots/textured/overall_left/overall_left2.png" />
+<img src="Screenshots/textured/overall_left/overall_left3.png" />
+<img src="Screenshots/textured/overall_left/overall_left4.png" />
+<img src="Screenshots/textured/overall_left/overall_left5.png" />
+<img src="Screenshots/textured/overall_left/overall_left6.png" />
+
+#### Overall, Right Side
+<img src="Screenshots/textured/overall_right/overall_right1.png" />
+<img src="Screenshots/textured/overall_right/overall_right2.png" />
+<img src="Screenshots/textured/overall_right/overall_right3.png" />
+<img src="Screenshots/textured/overall_right/overall_right4.png" />
+<img src="Screenshots/textured/overall_right/overall_right5.png" />
+<img src="Screenshots/textured/overall_right/overall_right6.png" />
 
 #### Closeup
-<img src="Screenshots/textured-closeup1.png" />
-<img src="Screenshots/textured-closeup2.png" />
-<img src="Screenshots/textured-closeup3.png" />
-<img src="Screenshots/textured-closeup4.png" />
-<img src="Screenshots/textured-closeup5.png" />
+<img src="Screenshots/textured/closeup1.png" />
+<img src="Screenshots/textured/closeup2.png" />
+<img src="Screenshots/textured/closeup3.png" />
+<img src="Screenshots/textured/closeup4.png" />
+<img src="Screenshots/textured/closeup5.png" />
+<img src="Screenshots/textured/closeup6.png" />
+<img src="Screenshots/textured/closeup7.png" />
+<img src="Screenshots/textured/closeup8.png" />
+<img src="Screenshots/textured/closeup9.png" />
+<img src="Screenshots/textured/closeup10.png" />
+<img src="Screenshots/textured/closeup11.png" />
+<img src="Screenshots/textured/closeup12.png" />
 
-
-
+#### Singles
+<img src="Screenshots/textured/single/single1.png" />
+<img src="Screenshots/textured/single/single2.png" />
+<img src="Screenshots/textured/single/single3.png" />
+<img src="Screenshots/textured/single/single4.png" />
+<img src="Screenshots/textured/single/single5.png" />
+<img src="Screenshots/textured/single/single6.png" />
+<img src="Screenshots/textured/single/single7.png" />
+<img src="Screenshots/textured/single/single8.png" />
+<img src="Screenshots/textured/single/single9.png" />
+<img src="Screenshots/textured/single/single10.png" />
+<img src="Screenshots/textured/single/single11.png" />
+<img src="Screenshots/textured/single/single12.png" />
+<img src="Screenshots/textured/single/single13.png" />
+<img src="Screenshots/textured/single/single14.png" />
+<img src="Screenshots/textured/single/single15.png" />
+<img src="Screenshots/textured/single/single16.png" />
+<img src="Screenshots/textured/single/single17.png" />
+<img src="Screenshots/textured/single/single18.png" />
+<img src="Screenshots/textured/single/single19.png" />
