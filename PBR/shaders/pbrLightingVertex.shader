@@ -1,4 +1,11 @@
 #version 430 core
+#define NB_POINT_LIGHTS 4
+
+// size: 2 * vec4 = 32 bytes
+struct PointLight {
+	vec3 position;
+	vec3 color;
+};
 
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
@@ -12,12 +19,18 @@ layout (std140, binding = 0) uniform transforms {		// base alignement	// aligned
 	mat3 NM;											// 48 bytes			// 128
 };
 
+// size: 144 bytes
+layout (std140, binding = 1) uniform lighting {		// base alignment	// aligned offset
+	PointLight pointLights[NB_POINT_LIGHTS];		// 128 bytes		// 0
+	vec3 wViewPos;									//  16 bytes		// 128
+};
+
 out VS_OUT {
 	vec3 wPos;
 	vec3 wNorm;
 	vec2 uv;
 	mat3 TBN;
-	mat3 invTBN;
+	vec3 tViewDir;
 } vsOut;
 
 void main() {
@@ -27,12 +40,12 @@ void main() {
 
 	vec3 T = normalize(NM * tangent);
 	vec3 N = normalize(wNorm);
-	//T = normalize(T - dot(T, N) * N);
+	T = normalize(T - dot(T, N) * N);
 	vec3 B = cross(N, T);
 
 	vsOut.wPos = vec3(M * pos);
 	vsOut.wNorm = wNorm;
 	vsOut.uv = uv;
 	vsOut.TBN = mat3(T, B, N);
-	vsOut.invTBN = transpose(vsOut.TBN);
+	vsOut.tViewDir = transpose(vsOut.TBN) * (wViewPos - vsOut.wPos);
 }

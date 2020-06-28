@@ -21,7 +21,7 @@ in VS_OUT {
 	vec3 wNorm;
 	vec2 uv;
 	mat3 TBN;
-	mat3 invTBN;
+	vec3 tViewDir;
 } fsIn;
 
 // size: 144 bytes
@@ -58,7 +58,7 @@ float geometrySchlickGGX(float NdotX, float k);
 vec2 parallaxOffset(vec3 tViewDir);
 
 void main() {
-	vec2 uv = parallax ? parallaxOffset(normalize(fsIn.invTBN * (wViewPos - fsIn.wPos))) : fsIn.uv;
+	vec2 uv = parallax ? parallaxOffset(normalize(fsIn.tViewDir)) : fsIn.uv;
 
 	vec3 albedo = texture(material1.albedo, uv).rgb;
 	vec3 N = normalize(fsIn.TBN * (texture(material1.normal, uv).xyz * 2.0f - 1.0f));
@@ -109,7 +109,7 @@ void main() {
 			f *
 			G(N, L, V, k);
 
-		specular /= max((4.0f * NdotV * NdotL), 0.001f); // prevent division by 0
+		specular /= max((4.0f * NdotV * NdotL), 0.00001f); // prevent division by 0
 
 		L0 += (diffuse + specular) * radiance * NdotL;
 	}
@@ -162,7 +162,7 @@ float geometrySchlickGGX(float NdotX, float k) {
 }
 
 vec2 parallaxOffset(vec3 tViewDir) {
-	float nbLayers = mix(maxLayers, minLayers, max(dot(vec3(0.0, 0.0, 1.0), tViewDir), 0.0));
+	float nbLayers = mix(maxLayers, minLayers, abs(dot(vec3(0.0, 0.0, 1.0), tViewDir)));
 	float layerDepth = 1.0f / nbLayers;
 
 	vec2 p = tViewDir.xy / tViewDir.z * heightScale;
