@@ -8,7 +8,7 @@
 #include "Model.h"
 
 #define DEBUGGING
-//#define FULLSCREEN
+#define FULLSCREEN
 //#define SCREEN_GRAB
 
 #ifdef DEBUGGING
@@ -23,14 +23,14 @@
 	#define BRDF_INT_MAP_RES 1024
 #endif
 
-#define CAM_SPEED 2.0f
+#define CAM_SPEED 5.0f
 #define NB_POINT_LIGHTS 4
 #define NB_CUBEMAP_FACES 6
 #define NB_SPHERE_ROWS 7
 #define NB_SPHERE_COLS 7
 #define NB_HDR_TEX 2
 #define NB_SCENES 6
-#define NB_TEX_SPHERE 5
+#define NB_TEX_SPHERE 19
 #define TEX_PER_MAT 6
 #define WORLD_RIGHT glm::vec3(1.0f, 0.0f, 0.0f)
 #define WORLD_UP glm::vec3(0.0f, 1.0f, 0.0f)
@@ -58,8 +58,8 @@ void genBRDFintegrationMap(const GLuint& FBO, const GLuint& RBO, GLuint& texBRDF
 Window window;
 
 Camera camera(
-	glm::vec3(0.0f, 1.0f, 23.0f),
-	glm::vec3(-10.0f, 9.0f, -33.0f),
+	glm::vec3(-1.25f, -1.25f, 21.0f),
+	glm::vec3(0.0f, 0.0f, -1.0f),
 	WORLD_UP,
 	45.0f
 );
@@ -112,26 +112,44 @@ glm::vec3 lightPositions[NB_POINT_LIGHTS] = {
 };
 
 glm::vec3 lightColors(300.0f);
+glm::mat4 MpointLights[NB_POINT_LIGHTS];
 
-glm::mat4 M, V, P, MVP;
-glm::mat3 NM;
+glm::mat4 V, P, MVP;
 
+glm::mat4 McoloredSpheres[NB_SPHERE_ROWS * NB_SPHERE_COLS];
+glm::mat3 NMcoloredSpheres[NB_SPHERE_ROWS * NB_SPHERE_COLS];
 glm::vec3 sphereAlbedo(0.5f, 0.5f, 0.5f);
+float metallic[NB_SPHERE_ROWS];
+float roughness[NB_SPHERE_COLS];
+
+glm::mat4 MtexturedSpheres[NB_TEX_SPHERE];
+glm::mat3 NMtexturedSpheres[NB_TEX_SPHERE];
+
 const float spacing = 2.5f;
+const float xTrans = NB_SPHERE_COLS / 2.0f;
+const float yTrans = NB_SPHERE_ROWS / 2.0f;
 
 double delta_time = 0.0;
 double last_frame = 0.0f;
 double current_frame;
 float angle_x = 0.0f;
 float angle_y = 0.0f;
-float exposure = 0.5f;
+float exposure = 1.3f;
 unsigned int currentScene = 0;
 bool textured = false;
-float heightScales[NB_TEX_SPHERE] = { 0.01f,0.02f,0.05f,0.01f,0.05f };
-bool parallax = false;
+float heightScales[NB_TEX_SPHERE] = { 
+	0.01f, 0.02f, 0.05f, 0.01f, 0.05f, 0.04f, 0.02f,
+	0.04f, 0.06f, 0.08f, 0.08f, 0.06f, 0.06f, 0.06f,
+		   0.08f, 0.06f, 0.01f, 0.03f, 0.06f
+};
+//float heightScale = 0.01f;
+bool parallax = true;
+bool overallShots = true;
+bool closeupShots = false;
+bool singlesShots = false;
 
 const char* scenePaths[NB_SCENES] = {
-	"./assets/HDR_maps/circus_arena.hdr",
+	"./assets/HDR_maps/nagoya_wall_path.hdr",
 	"./assets/HDR_maps/fireplace.hdr",
 	"./assets/HDR_maps/red_wall.hdr",
 	"./assets/HDR_maps/the_sky_is_on_fire.hdr",
@@ -148,47 +166,13 @@ const char* texUniform[TEX_PER_MAT] = {
 	"material1.height"
 };
 
-const char* texLoc[NB_TEX_SPHERE][TEX_PER_MAT] = {
-	{
-		"./assets/textures/texture1/d.png",
-		"./assets/textures/texture1/n.png",
-		"./assets/textures/texture1/m.png",
-		"./assets/textures/texture1/r.png",
-		"./assets/textures/texture1/a.png",
-		"./assets/textures/texture1/h.png"
-	},
-	{
-		"./assets/textures/texture2/d.png",
-		"./assets/textures/texture2/n.png",
-		"./assets/textures/texture2/m.png",
-		"./assets/textures/texture2/r.png",
-		"./assets/textures/texture2/a.png",
-		"./assets/textures/texture2/h.png"
-	},
-	{
-		"./assets/textures/texture3/d.png",
-		"./assets/textures/texture3/n.png",
-		"./assets/textures/texture3/m.png",
-		"./assets/textures/texture3/r.png",
-		"./assets/textures/texture3/a.png",
-		"./assets/textures/texture3/h.png"
-	},
-	{
-		"./assets/textures/texture4/d.png",
-		"./assets/textures/texture4/n.png",
-		"./assets/textures/texture4/m.png",
-		"./assets/textures/texture4/r.png",
-		"./assets/textures/texture4/a.png",
-		"./assets/textures/texture4/h.png"
-	},
-	{
-		"./assets/textures/texture5/d.png",
-		"./assets/textures/texture5/n.png",
-		"./assets/textures/texture5/m.png",
-		"./assets/textures/texture5/r.png",
-		"./assets/textures/texture5/a.png",
-		"./assets/textures/texture5/h.png"
-	}
+const char* sphereTex[TEX_PER_MAT] = {
+	"d.png",
+	"n.png",
+	"m.png",
+	"r.png",
+	"a.png",
+	"h.png"
 };
 
 GLfloat cubeMapVertices[] = {

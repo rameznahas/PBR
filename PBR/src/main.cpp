@@ -21,9 +21,11 @@ int main() {
 	GLuint VAOsphere, VBOsphere, EBOsphere, texSphere[NB_TEX_SPHERE][TEX_PER_MAT];
 	size_t indexCount = initSphereVertices(VAOsphere, VBOsphere, EBOsphere);
 	for (unsigned int i = 0; i < NB_TEX_SPHERE; ++i) {
-		texSphere[i][0] = loadTexture(texLoc[i][0], true);
+		std::string texLoc = "./assets/textures/texture" + std::to_string(i + 1) + "/";
+
+		texSphere[i][0] = loadTexture((texLoc + sphereTex[0]).c_str(), true);
 		for (unsigned int j = 1; j < TEX_PER_MAT; ++j) {
-			texSphere[i][j] = loadTexture(texLoc[i][j], false);
+			texSphere[i][j] = loadTexture((texLoc + sphereTex[j]).c_str(), false);
 		}
 	}
 
@@ -105,8 +107,30 @@ int main() {
 
 	P = glm::perspective(glm::radians(camera.fov), (float)window.width / window.height, 0.1f, 100.0f);
 
-	const float xTrans = NB_SPHERE_COLS / 2.0f;
-	const float yTrans = NB_SPHERE_ROWS / 2.0f;
+	for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
+		metallic[i] = (float)i / NB_SPHERE_ROWS;
+		roughness[i] = glm::clamp((float)i / NB_SPHERE_COLS, 0.025f, 1.0f);
+
+		unsigned int rowOffset = i * NB_SPHERE_ROWS;
+		for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
+			unsigned int idx = rowOffset + j;
+
+			McoloredSpheres[idx] = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
+			NMcoloredSpheres[idx] = glm::transpose(glm::inverse(glm::mat3(McoloredSpheres[idx])));
+		}
+	}
+
+	for (unsigned int i = 0; i < NB_TEX_SPHERE; ++i) {
+		unsigned int idx = i / 14 + i;
+		MtexturedSpheres[i] = McoloredSpheres[idx];
+		NMtexturedSpheres[i] = NMcoloredSpheres[idx];
+	}
+
+	for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
+		MpointLights[i] = glm::translate(glm::mat4(1.0f), lightPositions[i]);
+		MpointLights[i] = glm::scale(MpointLights[i], glm::vec3(0.15f));
+	}
+
 	// render loop
 	while (!glfwWindowShouldClose(window())) {
 		current_frame = glfwGetTime();
@@ -142,23 +166,25 @@ int main() {
 					glActiveTexture(GL_TEXTURE3 + j);
 					glBindTexture(GL_TEXTURE_2D, texSphere[i][j]);
 				}
-				M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(i - xTrans, 0.0f, 0.0f));
-				MVP = P * V * M;
-				NM = glm::transpose(glm::inverse(glm::mat3(M)));
-				setUBOtransforms(M, MVP, NM);
+
+				MVP = P * V * MtexturedSpheres[i];
+				NMtexturedSpheres[i] = glm::transpose(glm::inverse(glm::mat3(MtexturedSpheres[i])));
+				setUBOtransforms(MtexturedSpheres[i], MVP, NMtexturedSpheres[i]);
+
 				glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
 			}
 		}
 		else {
 			programPBRlighting.use();
 			for (unsigned int i = 0; i < NB_SPHERE_ROWS; ++i) {
-				programPBRlighting.set_float("material1.metallic", (float)i / NB_SPHERE_ROWS);
+				unsigned int rowOffset = i * NB_SPHERE_ROWS;
+				programPBRlighting.set_float("material1.metallic", metallic[i]);
 				for (unsigned int j = 0; j < NB_SPHERE_COLS; ++j) {
-					programPBRlighting.set_float("material1.roughness", glm::clamp((float)j / NB_SPHERE_COLS, 0.025f, 1.0f));
-					M = glm::translate(glm::mat4(1.0f), spacing * glm::vec3(j - xTrans, i - yTrans, 0.0f));
-					MVP = P * V * M;
-					NM = glm::transpose(glm::inverse(glm::mat3(M)));
-					setUBOtransforms(M, MVP, NM);
+					unsigned int idx = rowOffset + j;
+
+					MVP = P * V * McoloredSpheres[idx];
+					programPBRlighting.set_float("material1.roughness", roughness[j]);
+					setUBOtransforms(McoloredSpheres[idx], MVP, NMcoloredSpheres[idx]);
 					glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
 				}
 			}
@@ -166,9 +192,7 @@ int main() {
 
 		programLight.use();
 		for (unsigned int i = 0; i < NB_POINT_LIGHTS; ++i) {
-			M = glm::translate(glm::mat4(1.0f), lightPositions[i]);
-			M = glm::scale(M, glm::vec3(0.15f));
-			MVP = P * V * M;
+			MVP = P * V * MpointLights[i];
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), &MVP);
 			programLight.set_vec3("lightColor", &lightColors[0]);
 			glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
@@ -203,7 +227,7 @@ bool init() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_SAMPLES, 16);
 
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -271,24 +295,158 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.forward, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.right, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) camera.walk_around(CAM_SPEED * camera.up, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) camera.walk_around(CAM_SPEED * -camera.up, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) textured = !textured;
+
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		camera.walk_around(CAM_SPEED * camera.forward, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) 
+		camera.walk_around(CAM_SPEED * -camera.forward, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) 
+		camera.walk_around(CAM_SPEED * -camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) 
+		camera.walk_around(CAM_SPEED * camera.right, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) 
+		camera.walk_around(CAM_SPEED * camera.up, delta_time);
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) 
+		camera.walk_around(CAM_SPEED * -camera.up, delta_time);
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		textured = !textured;
+		if (textured) 
+			camera.moveTo(glm::vec3(-1.25f, -6.25f, 12.00f), glm::vec3(0.0f, 0.0f, -12.00f));
+		else
+			camera.moveTo(glm::vec3(-1.25f, -1.25f, 21.0f), glm::vec3(0.0f, 0.0f, -21.0f));
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
 		parallax = !parallax;
-		
-		if (parallax)
-			std::cout << "parallax on" << std::endl;
-		else
-			std::cout << "parallax off" << std::endl;
+		std::cout << "PARALLAX TOGGLE " << parallax << std::endl;
 	}
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+		overallShots = singlesShots = closeupShots;
+		closeupShots = !closeupShots;
+		std::cout << "CLOSEUP SHOTS TOGGLE " << closeupShots << std::endl;
+	}
+	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+		overallShots = closeupShots = singlesShots;
+		singlesShots = !singlesShots;
+		std::cout << "SINGLES SHOTS TOGGLE " << singlesShots << std::endl;
+	}
+
+	if (!textured) {
+		// overall shots
+		if (overallShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-1.25f, -1.25f, 21.0f), glm::vec3(0.0f, 0.0f, -21.0f));
+			if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-25.75f, -1.25f, 13.25f), glm::vec3(24.5f, 0.0f, -13.25f));
+			if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(23.25f, -1.25f, 13.25f), glm::vec3(-24.5f, 0.0f, -13.25f));
+		}
+		// closeup shots
+		if (closeupShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_0) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -6.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -3.75f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -1.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, 1.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, 3.75f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_5) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -6.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -3.75f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_7) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -1.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_8) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, 1.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_9) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, 3.75f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+		}
+		// singles shots
+		if (singlesShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -1.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_5) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, 1.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, 3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_7) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, 6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+		}
+	}
+	else {
+		// overall shots
+		if (overallShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-1.25f, -6.25f, 12.00f), glm::vec3(0.0f, 0.0f, -12.00f));
+			if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-14.25f, -6.95f, 7.1f), glm::vec3(0.88f, 0.05f, -0.48f));
+			if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(11.75f, -6.95f, 7.1f), glm::vec3(-0.88f, 0.05f, -0.48f));
+		}
+		// closeup shots
+		if (closeupShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_0) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -6.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -6.25f, 8.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+		}
+		// singles shots
+		if (singlesShots) {
+			if (glfwGetKey(window, GLFW_KEY_KP_0) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-6.25f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-1.25f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_5) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(3.75f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(6.25f, -8.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_7) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-8.75f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_8) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-6.25f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_KP_9) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-1.25f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(3.75f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(6.25f, -6.25f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-6.25f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-3.75f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(-1.25f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F8) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(1.25f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+			if (glfwGetKey(window, GLFW_KEY_F9) == GLFW_PRESS)
+				camera.moveTo(glm::vec3(3.75f, -3.75f, 2.75f), glm::vec3(0.0f, 0.0f, -8.75f));
+		}
+	}
+
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 		currentScene = 0;
-		exposure = 0.5f;
+		exposure = 1.3f;
 	}
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
 		currentScene = 1;
@@ -296,15 +454,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	}
 	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
 		currentScene = 2;
-		exposure = 1.0f;
+		exposure = 1.2f;
 	}
 	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
 		currentScene = 3;
-		exposure = 0.25f;
+		exposure = 0.45f;
 	}
 	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) {
 		currentScene = 4;
-		exposure = 1.25f;
+		exposure = 1.45f;
 	}
 	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) {
 		currentScene = 5;
@@ -468,8 +626,8 @@ void computeVertTangents(float* vertices, float* to) {
 
 size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 	const float PI = 3.14159265359f;
-	const unsigned int X_SEGMENTS = 64;
-	const unsigned int Y_SEGMENTS = 64;
+	const unsigned int X_SEGMENTS = 128;
+	const unsigned int Y_SEGMENTS = 128;
 
 	std::vector<glm::vec3> positions;
 	std::vector<glm::vec3> normals;
@@ -501,6 +659,7 @@ size_t initSphereVertices(GLuint& VAO, GLuint& VBO, GLuint& EBO) {
 			positions.push_back(position);
 			normals.push_back(position);
 			tangents.push_back(tangent);
+
 			uvs.push_back(glm::vec2(xSegment, ySegment));
 		}
 	}
