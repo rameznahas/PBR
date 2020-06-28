@@ -143,18 +143,18 @@ The non-textured spheres in the 7x7 grid layout increase in roughness when going
 <img src="Screenshots/textured/overall_right/overall_right6.png" />
 
 #### Closeup
-<img src="Screenshots/textured/closeup1.png" />
-<img src="Screenshots/textured/closeup2.png" />
-<img src="Screenshots/textured/closeup3.png" />
-<img src="Screenshots/textured/closeup4.png" />
-<img src="Screenshots/textured/closeup5.png" />
-<img src="Screenshots/textured/closeup6.png" />
-<img src="Screenshots/textured/closeup7.png" />
-<img src="Screenshots/textured/closeup8.png" />
-<img src="Screenshots/textured/closeup9.png" />
-<img src="Screenshots/textured/closeup10.png" />
-<img src="Screenshots/textured/closeup11.png" />
-<img src="Screenshots/textured/closeup12.png" />
+<img src="Screenshots/textured/closeup/closeup1.png" />
+<img src="Screenshots/textured/closeup/closeup2.png" />
+<img src="Screenshots/textured/closeup/closeup3.png" />
+<img src="Screenshots/textured/closeup/closeup4.png" />
+<img src="Screenshots/textured/closeup/closeup5.png" />
+<img src="Screenshots/textured/closeup/closeup6.png" />
+<img src="Screenshots/textured/closeup/closeup7.png" />
+<img src="Screenshots/textured/closeup/closeup8.png" />
+<img src="Screenshots/textured/closeup/closeup9.png" />
+<img src="Screenshots/textured/closeup/closeup10.png" />
+<img src="Screenshots/textured/closeup/closeup11.png" />
+<img src="Screenshots/textured/closeup/closeup12.png" />
 
 #### Singles
 <img src="Screenshots/textured/single/single1.png" />
